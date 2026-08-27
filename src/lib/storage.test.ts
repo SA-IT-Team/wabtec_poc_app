@@ -12,17 +12,17 @@ describe("connection config", () => {
   });
 
   it("round-trips a saved config", () => {
-    saveConnectionConfig({ baseUrl: "https://example.azurewebsites.net", functionKey: "abc123", backendType: "azure" });
-    expect(loadConnectionConfig()).toEqual({ baseUrl: "https://example.azurewebsites.net", functionKey: "abc123", backendType: "azure" });
+    saveConnectionConfig({ baseUrl: "https://example.vercel.app", apiKey: "abc123" });
+    expect(loadConnectionConfig()).toEqual({ baseUrl: "https://example.vercel.app", apiKey: "abc123" });
   });
 
-  it("round-trips a vercel config", () => {
-    saveConnectionConfig({ baseUrl: "https://example.vercel.app", functionKey: "abc123", backendType: "vercel" });
-    expect(loadConnectionConfig()).toEqual({ baseUrl: "https://example.vercel.app", functionKey: "abc123", backendType: "vercel" });
+  it("round-trips a localhost config, for testing against a locally-run backend", () => {
+    saveConnectionConfig({ baseUrl: "http://127.0.0.1:8000", apiKey: "local-secret" });
+    expect(loadConnectionConfig()).toEqual({ baseUrl: "http://127.0.0.1:8000", apiKey: "local-secret" });
   });
 
   it("clear removes it", () => {
-    saveConnectionConfig({ baseUrl: "https://example.azurewebsites.net", functionKey: "abc123", backendType: "azure" });
+    saveConnectionConfig({ baseUrl: "https://example.vercel.app", apiKey: "abc123" });
     clearConnectionConfig();
     expect(loadConnectionConfig()).toBeNull();
   });
@@ -37,9 +37,9 @@ describe("connection config", () => {
     expect(loadConnectionConfig()).toBeNull();
   });
 
-  it("defaults backendType to azure for a connection saved before backendType existed", () => {
-    localStorage.setItem("bdx-poc.connection", JSON.stringify({ baseUrl: "https://x", functionKey: "k" }));
-    expect(loadConnectionConfig()).toEqual({ baseUrl: "https://x", functionKey: "k", backendType: "azure" });
+  it("reads a connection saved under the old functionKey field name", () => {
+    localStorage.setItem("bdx-poc.connection", JSON.stringify({ baseUrl: "https://x", functionKey: "k", backendType: "vercel" }));
+    expect(loadConnectionConfig()).toEqual({ baseUrl: "https://x", apiKey: "k" });
   });
 });
 

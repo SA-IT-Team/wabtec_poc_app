@@ -13,8 +13,8 @@ import {
 } from "./api";
 import type { ConnectionConfig, CreateUploadUrlResponse, ExtractionResult, JobRecord } from "./types";
 
-const AZURE_CONFIG: ConnectionConfig = { baseUrl: "https://bdx-poc.azurewebsites.net/", functionKey: "test-key", backendType: "azure" };
-const VERCEL_CONFIG: ConnectionConfig = { baseUrl: "https://bdx-poc.vercel.app/", functionKey: "test-secret", backendType: "vercel" };
+const CONFIG: ConnectionConfig = { baseUrl: "https://bdx-poc.vercel.app/", apiKey: "test-secret" };
+const LOCAL_CONFIG: ConnectionConfig = { baseUrl: "http://127.0.0.1:8000", apiKey: "local-secret" };
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -45,32 +45,30 @@ describe("extractDrawing", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("posts multipart form data with the function key header on an azure backend, trimming a trailing slash from baseUrl", async () => {
+  it("posts multipart form data with the x-api-key header, trimming a trailing slash from baseUrl", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(SAMPLE_RESULT));
 
     const file = new File(["%PDF-1.4"], "dwg.pdf", { type: "application/pdf" });
-    const returned = await extractDrawing(AZURE_CONFIG, file, { templateId: "as9102-form3" });
+    const returned = await extractDrawing(CONFIG, file, { templateId: "as9102-form3" });
 
     expect(returned).toEqual(SAMPLE_RESULT);
     const [url, init] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toBe("https://bdx-poc.azurewebsites.net/api/drawings/extract"); // no double slash
+    expect(url).toBe("https://bdx-poc.vercel.app/api/drawings/extract"); // no double slash
     expect(init?.method).toBe("POST");
-    expect((init?.headers as Record<string, string>)["x-functions-key"]).toBe("test-key");
-    expect((init?.headers as Record<string, string>)["x-api-key"]).toBeUndefined();
+    expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("test-secret");
     const form = init?.body as FormData;
     expect(form.get("file")).toBe(file);
     expect(form.get("templateId")).toBe("as9102-form3");
   });
 
-  it("uses x-api-key instead on a vercel backend", async () => {
+  it("works against a locally-run backend on 127.0.0.1", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(SAMPLE_RESULT));
 
-    await extractDrawing(VERCEL_CONFIG, new File(["x"], "a.pdf", { type: "application/pdf" }));
+    await extractDrawing(LOCAL_CONFIG, new File(["x"], "a.pdf", { type: "application/pdf" }));
 
-    const [, init] = vi.mocked(fetch).mock.calls[0];
-    const headers = init?.headers as Record<string, string>;
-    expect(headers["x-api-key"]).toBe("test-secret");
-    expect(headers["x-functions-key"]).toBeUndefined();
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("http://127.0.0.1:8000/api/drawings/extract");
+    expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("local-secret");
   });
 
   it("raises ApiClientError with the server-provided message on a non-2xx response", async () => {
@@ -78,7 +76,7 @@ describe("extractDrawing", () => {
       jsonResponse({ error: "QualityThresholdNotMet", message: "Image resolution 72 DPI is below the minimum." }, 422)
     );
 
-    const err = await extractDrawing(AZURE_CONFIG, new File(["x"], "a.png", { type: "image/png" })).catch((e) => e);
+    const err = await extractDrawing(CONFIG, new File(["x"], "a.png", { type: "image/png" })).catch((e) => e);
 
     expect(err).toBeInstanceOf(ApiClientError);
     expect((err as ApiClientError).status).toBe(422);
@@ -88,7 +86,7 @@ describe("extractDrawing", () => {
   it("falls back to a generic message when the error body isn't valid JSON", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response("<html>502</html>", { status: 502 }));
 
-    const err = await extractDrawing(AZURE_CONFIG, new File(["x"], "a.pdf")).catch((e) => e);
+    const err = await extractDrawing(CONFIG, new File(["x"], "a.pdf")).catch((e) => e);
 
     expect(err).toBeInstanceOf(ApiClientError);
     expect((err as ApiClientError).status).toBe(502);
@@ -97,7 +95,7 @@ describe("extractDrawing", () => {
 });
 
 describe("getDrawingResult", () => {
-  it("GETs the job by id with the function key header", async () => {
+  it("GETs the job by id with the x-api-key header", async () => {
     const job: JobRecord = {
       job_id: "job-1",
       file_name: "dwg.pdf",
@@ -113,18 +111,18 @@ describe("getDrawingResult", () => {
     };
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(job));
 
-    const returned = await getDrawingResult(AZURE_CONFIG, "job-1");
+    const returned = await getDrawingResult(CONFIG, "job-1");
 
     expect(returned).toEqual(job);
     const [url, init] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toBe("https://bdx-poc.azurewebsites.net/api/drawings/job-1");
-    expect((init?.headers as Record<string, string>)["x-functions-key"]).toBe("test-key");
+    expect(url).toBe("https://bdx-poc.vercel.app/api/drawings/job-1");
+    expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("test-secret");
   });
 
   it("raises ApiClientError(404) for an unknown job id", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ error: "NotFound", message: "No job found for id 'nope'." }, 404));
 
-    const err = await getDrawingResult(AZURE_CONFIG, "nope").catch((e) => e);
+    const err = await getDrawingResult(CONFIG, "nope").catch((e) => e);
 
     expect(err).toBeInstanceOf(ApiClientError);
     expect((err as ApiClientError).status).toBe(404);
@@ -136,7 +134,7 @@ describe("createUploadUrl", () => {
     const response: CreateUploadUrlResponse = { jobId: "job-1", uploadUrl: "https://blob/sas?token=1", blobPath: "job-1/source_dwg.pdf" };
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(response, 201));
 
-    const returned = await createUploadUrl(VERCEL_CONFIG, "dwg.pdf", "application/pdf");
+    const returned = await createUploadUrl(CONFIG, "dwg.pdf", "application/pdf");
 
     expect(returned).toEqual(response);
     const [url, init] = vi.mocked(fetch).mock.calls[0];
@@ -159,7 +157,6 @@ describe("uploadFileToBlob", () => {
     const headers = init?.headers as Record<string, string>;
     expect(headers["x-ms-blob-type"]).toBe("BlockBlob");
     expect(headers["x-api-key"]).toBeUndefined();
-    expect(headers["x-functions-key"]).toBeUndefined();
     expect(init?.body).toBe(file);
   });
 
@@ -177,7 +174,7 @@ describe("processDrawing", () => {
   it("posts the blob path + content type and returns the extraction result", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(SAMPLE_RESULT));
 
-    const returned = await processDrawing(VERCEL_CONFIG, "job-1", "job-1/source_dwg.pdf", "application/pdf");
+    const returned = await processDrawing(CONFIG, "job-1", "job-1/source_dwg.pdf", "application/pdf");
 
     expect(returned).toEqual(SAMPLE_RESULT);
     const [url, init] = vi.mocked(fetch).mock.calls[0];
@@ -196,7 +193,7 @@ describe("extractLargeDrawing", () => {
 
     const stages: string[] = [];
     const file = new File(["big file bytes"], "dwg.pdf", { type: "application/pdf" });
-    const returned = await extractLargeDrawing(VERCEL_CONFIG, file, (stage) => stages.push(stage));
+    const returned = await extractLargeDrawing(CONFIG, file, (stage) => stages.push(stage));
 
     expect(returned).toEqual(SAMPLE_RESULT);
     expect(stages).toEqual(["uploading", "processing"]);
@@ -208,27 +205,17 @@ describe("extractLargeDrawing", () => {
 });
 
 describe("extractDrawingSmart", () => {
-  it("uses the single-call path on an azure backend regardless of file size", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(SAMPLE_RESULT));
-    const bigFile = new File([new Uint8Array(VERCEL_DIRECT_UPLOAD_MAX_BYTES + 1)], "big.pdf", { type: "application/pdf" });
-
-    await extractDrawingSmart(AZURE_CONFIG, bigFile);
-
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(fetch).mock.calls[0][0]).toBe("https://bdx-poc.azurewebsites.net/api/drawings/extract");
-  });
-
-  it("uses the single-call path on vercel for a small file", async () => {
+  it("uses the single-call path for a small file", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(SAMPLE_RESULT));
     const smallFile = new File(["small"], "small.pdf", { type: "application/pdf" });
 
-    await extractDrawingSmart(VERCEL_CONFIG, smallFile);
+    await extractDrawingSmart(CONFIG, smallFile);
 
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe("https://bdx-poc.vercel.app/api/drawings/extract");
   });
 
-  it("uses the three-step large-file path on vercel once the file exceeds the threshold", async () => {
+  it("uses the three-step large-file path once the file exceeds the threshold", async () => {
     const response: CreateUploadUrlResponse = { jobId: "job-1", uploadUrl: "https://blob/sas?token=1", blobPath: "job-1/source_big.pdf" };
     vi.mocked(fetch)
       .mockResolvedValueOnce(jsonResponse(response, 201))
@@ -236,9 +223,23 @@ describe("extractDrawingSmart", () => {
       .mockResolvedValueOnce(jsonResponse(SAMPLE_RESULT));
     const bigFile = new File([new Uint8Array(VERCEL_DIRECT_UPLOAD_MAX_BYTES + 1)], "big.pdf", { type: "application/pdf" });
 
-    await extractDrawingSmart(VERCEL_CONFIG, bigFile);
+    await extractDrawingSmart(CONFIG, bigFile);
 
     expect(fetch).toHaveBeenCalledTimes(3);
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe("https://bdx-poc.vercel.app/api/drawings/upload-url");
+  });
+
+  it("takes the large-file path against a local backend too, so local testing matches production", async () => {
+    const response: CreateUploadUrlResponse = { jobId: "job-big", uploadUrl: "https://blob/sas?token=1", blobPath: "job-big/source_big.pdf" };
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(response, 201))
+      .mockResolvedValueOnce(new Response(null, { status: 201 }))
+      .mockResolvedValueOnce(jsonResponse(SAMPLE_RESULT));
+    const bigFile = new File([new Uint8Array(VERCEL_DIRECT_UPLOAD_MAX_BYTES + 1)], "big.pdf", { type: "application/pdf" });
+
+    await extractDrawingSmart(LOCAL_CONFIG, bigFile);
+
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe("http://127.0.0.1:8000/api/drawings/upload-url");
   });
 });

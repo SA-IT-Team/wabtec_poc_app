@@ -1,7 +1,7 @@
 /**
- * All persistence in this app is browser localStorage -- there is no backend for the app itself,
- * only the Function App it talks to. Nothing here ever leaves the browser except via api.ts's
- * calls to the configured Function App.
+ * All persistence in this app is browser localStorage -- this app has no server of its own, only
+ * the wabtec_poc backend it talks to. Nothing here ever leaves the browser except via api.ts's
+ * calls to that backend.
  */
 import type { ConnectionConfig, HistoryEntry } from "./types";
 
@@ -13,15 +13,12 @@ export function loadConnectionConfig(): ConnectionConfig | null {
   try {
     const raw = localStorage.getItem(CONNECTION_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<ConnectionConfig>;
-    if (!parsed.baseUrl || !parsed.functionKey) return null;
-    return {
-      baseUrl: parsed.baseUrl,
-      functionKey: parsed.functionKey,
-      // Defaults a connection saved before backendType existed to "azure" -- the only backend
-      // this app originally supported -- so existing users don't lose their saved connection.
-      backendType: parsed.backendType === "vercel" ? "vercel" : "azure",
-    };
+    // `functionKey` is the pre-rename field name, from when this app also supported an Azure
+    // Functions backend -- still read so an already-saved connection survives the upgrade.
+    const parsed = JSON.parse(raw) as Partial<ConnectionConfig> & { functionKey?: string };
+    const apiKey = parsed.apiKey ?? parsed.functionKey;
+    if (!parsed.baseUrl || !apiKey) return null;
+    return { baseUrl: parsed.baseUrl, apiKey };
   } catch {
     return null;
   }

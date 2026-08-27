@@ -19,14 +19,7 @@ afterEach(() => {
 });
 
 async function connect(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText(/function app url/i), "https://bdx-poc.azurewebsites.net");
-  await user.type(screen.getByLabelText(/function key/i), "test-key");
-  await user.click(screen.getByRole("button", { name: /save/i }));
-}
-
-async function connectVercel(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("radio", { name: /vercel/i }));
-  await user.type(screen.getByLabelText(/vercel deployment url/i), "https://bdx-poc.vercel.app");
+  await user.type(screen.getByLabelText(/backend url/i), "https://bdx-poc.vercel.app");
   await user.type(screen.getByLabelText(/api access key/i), "test-secret");
   await user.click(screen.getByRole("button", { name: /save/i }));
 }
@@ -34,7 +27,7 @@ async function connectVercel(user: ReturnType<typeof userEvent.setup>) {
 describe("App", () => {
   it("prompts for connection details before allowing an upload", () => {
     render(<App />);
-    expect(screen.getByLabelText(/function app url/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/backend url/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /extract/i })).toBeDisabled();
   });
 
@@ -42,12 +35,12 @@ describe("App", () => {
     const user = userEvent.setup();
     const { unmount } = render(<App />);
     await connect(user);
-    expect(screen.getByText(/bdx-poc\.azurewebsites\.net/)).toBeInTheDocument();
+    expect(screen.getByText(/bdx-poc\.vercel\.app/)).toBeInTheDocument();
     unmount();
 
     render(<App />);
     expect(screen.getByText("● connected")).toBeInTheDocument();
-    expect(screen.queryByLabelText(/function app url/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/backend url/i)).not.toBeInTheDocument();
   });
 
   it("uploads a file and renders the extraction result, including a mismatch banner", async () => {
@@ -116,7 +109,7 @@ describe("App", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/below the minimum of 200 DPI/);
   });
 
-  it("connects to a vercel backend and sends x-api-key instead of x-functions-key", async () => {
+  it("sends the shared secret as x-api-key on upload", async () => {
     const user = userEvent.setup();
     const result: ExtractionResult = {
       job_id: "job-1",
@@ -131,9 +124,8 @@ describe("App", () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(result));
 
     render(<App />);
-    await connectVercel(user);
+    await connect(user);
     expect(screen.getByText(/bdx-poc\.vercel\.app/)).toBeInTheDocument();
-    expect(screen.getByText("Vercel")).toBeInTheDocument();
 
     const file = new File(["%PDF-1.4"], "dwg.pdf", { type: "application/pdf" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -146,7 +138,7 @@ describe("App", () => {
     expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("test-secret");
   });
 
-  it("routes a file over the size threshold through the upload-url/PUT/process flow on a vercel backend", async () => {
+  it("routes a file over the size threshold through the upload-url/PUT/process flow", async () => {
     const user = userEvent.setup();
     const uploadUrlResponse: CreateUploadUrlResponse = {
       jobId: "job-big",
@@ -169,7 +161,7 @@ describe("App", () => {
       .mockResolvedValueOnce(jsonResponse(result)); // POST process
 
     render(<App />);
-    await connectVercel(user);
+    await connect(user);
 
     const bigFile = new File([new Uint8Array(VERCEL_DIRECT_UPLOAD_MAX_BYTES + 1)], "big.pdf", { type: "application/pdf" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;

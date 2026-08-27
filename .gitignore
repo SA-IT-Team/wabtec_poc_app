@@ -6,3 +6,7 @@ dist-ssr
 .env.local
 coverage
 *.tsbuildinfo
+
+# emitted by `tsc -b` for the tsconfig.node.json project (composite projects can't set noEmit)
+vite.config.js
+vite.config.d.ts

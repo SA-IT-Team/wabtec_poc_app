@@ -1,6 +1,6 @@
 /**
- * Types mirroring poc/src/models.py. Keep these in sync with the backend's pydantic models --
- * they are the wire contract documented in architecture-poc.md §3.2.
+ * Types mirroring wabtec_poc/src/models.py. Keep these in sync with the backend's pydantic models
+ * -- they are the wire contract documented in architecture-poc.md §3.2.
  */
 
 export type ToleranceType = "bilateral" | "unilateral" | "limit" | "general" | "none";
@@ -69,20 +69,15 @@ export interface ApiErrorBody {
   openBalloonIds?: string[];
 }
 
-/** wabtec_poc deploys to either host -- see wabtec_poc/deployment.md (Azure) and
- * wabtec_poc/deployment-vercel.md (Vercel). The two use different auth header names
- * (x-functions-key vs x-api-key), which is the only reason this needs to be known client-side. */
-export type BackendType = "azure" | "vercel";
-
-/** Connection details for a deployed backend. Held client-side only (localStorage), never sent
- * anywhere but the configured backend itself. */
+/** Connection details for the backend: its base URL (a Vercel deployment, or
+ * http://127.0.0.1:8000 locally) and the shared secret it checks as `x-api-key` -- the value of
+ * its API_ACCESS_KEY. Held client-side only (localStorage), never sent anywhere but that backend. */
 export interface ConnectionConfig {
   baseUrl: string;
-  functionKey: string;
-  backendType: BackendType;
+  apiKey: string;
 }
 
-/** Response from POST /api/drawings/upload-url (Vercel only) -- see api.ts's module docstring. */
+/** Response from POST /api/drawings/upload-url -- see api.ts's module docstring. */
 export interface CreateUploadUrlResponse {
   jobId: string;
   uploadUrl: string;

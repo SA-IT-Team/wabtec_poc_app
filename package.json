@@ -2,7 +2,7 @@
   "name": "bdx-poc-app",
   "private": true,
   "version": "0.1.0",
-  "description": "React front end for the Ballooned Drawing Extraction POC (poc/) Azure Function App.",
+  "description": "React front end for the Ballooned Drawing Extraction POC backend (wabtec_poc).",
   "type": "module",
   "scripts": {
     "dev": "vite",

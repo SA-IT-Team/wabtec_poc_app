@@ -1,25 +1,23 @@
 /**
- * Typed client for wabtec_poc's endpoints, both hosts:
- *   POST /api/drawings/extract          -- upload + synchronously process one drawing (both hosts)
- *   POST /api/drawings/upload-url       -- get a direct-to-blob SAS URL (Vercel only)
- *   POST /api/drawings/<jobId>/process  -- process a drawing already uploaded via the SAS above (Vercel only)
- *   GET  /api/drawings/{jobId}          -- re-fetch a previously computed job record (both hosts)
+ * Typed client for the wabtec_poc backend:
+ *   POST /api/drawings/extract          -- upload + synchronously process one drawing
+ *   POST /api/drawings/upload-url       -- get a direct-to-blob SAS URL (large-file path, step 1)
+ *   POST /api/drawings/<jobId>/process  -- process a drawing already uploaded via that SAS (step 2)
+ *   GET  /api/drawings/{jobId}          -- re-fetch a previously computed job record
  *
- * Auth differs by host: Azure Functions' function-level key goes in `x-functions-key`; the
- * Vercel Flask app's homegrown shared secret goes in `x-api-key` (see wabtec_poc's app.py module
- * docstring for why it needs one at all -- there is no user auth on either host, see
+ * Auth is a single shared secret sent as `x-api-key`, matching the backend's API_ACCESS_KEY (see
+ * wabtec_poc/app.py's module docstring for why it needs one at all -- there is no user auth, see
  * wabtec_poc/doc/architecture-poc.md §3.3). The key is supplied by whoever is running this app
  * against their own deployment and stored only in that browser's localStorage.
  *
  * Why two upload paths: Vercel caps request/response bodies at 4.5MB, platform-wide, not
- * configurable (Azure Functions has no such cap). Real multi-page ballooned drawings routinely
- * exceed that, so anything above VERCEL_DIRECT_UPLOAD_MAX_BYTES on a Vercel backend goes through
- * upload-url + a direct browser-to-Blob-Storage PUT + process instead of extractDrawing's single
- * multipart call. See wabtec_poc/deployment-vercel.md §4.
+ * configurable. Real multi-page ballooned drawings routinely exceed that, so anything above
+ * VERCEL_DIRECT_UPLOAD_MAX_BYTES goes through upload-url + a direct browser-to-Blob-Storage PUT +
+ * process instead of extractDrawing's single multipart call. See
+ * wabtec_poc/deployment-vercel.md §4.
  */
 import type {
   ApiErrorBody,
-  BackendType,
   ConnectionConfig,
   CreateUploadUrlResponse,
   ExtractionResult,
@@ -38,7 +36,7 @@ export class ApiClientError extends Error {
   }
 }
 
-/** Thrown when baseUrl/functionKey haven't been configured yet. */
+/** Thrown when baseUrl/apiKey haven't been configured yet. */
 export class NotConfiguredError extends Error {
   constructor() {
     super("Backend URL and key are not configured yet.");
@@ -47,12 +45,11 @@ export class NotConfiguredError extends Error {
 }
 
 /** Stay safely under Vercel's hard 4.5MB request-body cap for the direct multipart path; above
- * this, use the upload-url + process flow instead. Irrelevant on an Azure Functions backend,
- * which has no such cap -- see extractDrawingSmart below. */
+ * this, extractDrawingSmart switches to the upload-url + process flow instead. */
 export const VERCEL_DIRECT_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 
 function requireConfig(config: ConnectionConfig | null): asserts config is ConnectionConfig {
-  if (!config || !config.baseUrl || !config.functionKey) {
+  if (!config || !config.baseUrl || !config.apiKey) {
     throw new NotConfiguredError();
   }
 }
@@ -61,12 +58,8 @@ function trimTrailingSlash(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
-function authHeaderName(backendType: BackendType): string {
-  return backendType === "vercel" ? "x-api-key" : "x-functions-key";
-}
-
 function authHeaders(config: ConnectionConfig): Record<string, string> {
-  return { [authHeaderName(config.backendType)]: config.functionKey };
+  return { "x-api-key": config.apiKey };
 }
 
 async function parseJsonSafe(res: Response): Promise<unknown> {
@@ -94,8 +87,8 @@ export interface ExtractOptions {
   signal?: AbortSignal;
 }
 
-/** Single-call path: works on both hosts, but on Vercel only safe for files under
- * VERCEL_DIRECT_UPLOAD_MAX_BYTES -- see extractDrawingSmart for the host-aware choice. */
+/** Single-call path: only safe for files under VERCEL_DIRECT_UPLOAD_MAX_BYTES -- see
+ * extractDrawingSmart, which picks this or the large-file path by size. */
 export async function extractDrawing(
   config: ConnectionConfig | null,
   file: File,
@@ -133,7 +126,7 @@ export async function getDrawingResult(
 }
 
 // ---------------------------------------------------------------------------------------
-// Large-file path (Vercel only): upload-url -> direct PUT to Blob Storage -> process
+// Large-file path: upload-url -> direct PUT to Blob Storage -> process
 // ---------------------------------------------------------------------------------------
 
 export async function createUploadUrl(
@@ -154,9 +147,9 @@ export async function createUploadUrl(
 }
 
 /** PUTs directly to Blob Storage via the SAS URL from createUploadUrl. This request goes
- * straight to Azure, never through the configured backend -- that's the entire point (bypasses
- * Vercel's 4.5MB cap entirely). No auth header from `config` belongs here: the SAS token
- * embedded in `uploadUrl` is the auth, and Blob Storage doesn't know about x-api-key. */
+ * straight to Azure, never through the backend -- that's the entire point (bypasses Vercel's
+ * 4.5MB cap entirely). No auth header from `config` belongs here: the SAS token embedded in
+ * `uploadUrl` is the auth, and Blob Storage doesn't know about x-api-key. */
 export async function uploadFileToBlob(uploadUrl: string, file: File, signal?: AbortSignal): Promise<void> {
   const res = await fetch(uploadUrl, {
     method: "PUT",
@@ -214,18 +207,17 @@ export async function extractLargeDrawing(
   return processDrawing(config, jobId, blobPath, contentType, signal);
 }
 
-/** Picks the right upload path for the configured backend + file size, so callers (App.tsx)
- * don't need to know the 4.5MB rule themselves. Azure Functions has no such cap, so it always
- * takes the simple single-call path regardless of size. */
+/** Picks the upload path by file size, so callers (App.tsx) don't need to know the 4.5MB rule
+ * themselves. The threshold applies even against a locally-run backend, where Vercel's cap doesn't
+ * exist -- deliberately, so local testing exercises the same path production will take. */
 export async function extractDrawingSmart(
   config: ConnectionConfig | null,
   file: File,
   options: { templateId?: string; onStageChange?: (stage: UploadStage) => void; signal?: AbortSignal } = {}
 ): Promise<ExtractionResult> {
   requireConfig(config);
-  const needsLargeFilePath = config.backendType === "vercel" && file.size > VERCEL_DIRECT_UPLOAD_MAX_BYTES;
 
-  if (needsLargeFilePath) {
+  if (file.size > VERCEL_DIRECT_UPLOAD_MAX_BYTES) {
     return extractLargeDrawing(config, file, options.onStageChange, options.signal);
   }
   return extractDrawing(config, file, { templateId: options.templateId, signal: options.signal });
