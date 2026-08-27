@@ -15,7 +15,13 @@ export function loadConnectionConfig(): ConnectionConfig | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<ConnectionConfig>;
     if (!parsed.baseUrl || !parsed.functionKey) return null;
-    return { baseUrl: parsed.baseUrl, functionKey: parsed.functionKey };
+    return {
+      baseUrl: parsed.baseUrl,
+      functionKey: parsed.functionKey,
+      // Defaults a connection saved before backendType existed to "azure" -- the only backend
+      // this app originally supported -- so existing users don't lose their saved connection.
+      backendType: parsed.backendType === "vercel" ? "vercel" : "azure",
+    };
   } catch {
     return null;
   }

@@ -18,6 +18,17 @@
   color: var(--ink-soft);
 }
 
+.connection-bar__backend-tag {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink-faint);
+  border: 1px solid var(--line);
+}
+
 .connection-bar--form {
   display: flex;
   flex-direction: column;
@@ -47,6 +58,33 @@
   color: var(--ink);
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.85rem;
+}
+
+.connection-bar__segmented {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.connection-bar__segment {
+  padding: 0.4rem 0.75rem;
+  border: none;
+  background: var(--bg);
+  color: var(--ink-soft);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.connection-bar__segment + .connection-bar__segment {
+  border-left: 1px solid var(--line);
+}
+
+.connection-bar__segment--active {
+  background: var(--accent);
+  color: #fff;
 }
 
 .connection-bar__actions {

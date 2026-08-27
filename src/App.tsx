@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiClientError, extractDrawing, getDrawingResult } from "./lib/api";
+import { ApiClientError, extractDrawingSmart, getDrawingResult, type UploadStage } from "./lib/api";
 import { addHistoryEntry, clearConnectionConfig, clearHistory, loadConnectionConfig, loadHistory, saveConnectionConfig } from "./lib/storage";
 import type { ConnectionConfig, ExtractionResult, HistoryEntry, JobRecord } from "./lib/types";
 import { BalloonTable } from "./components/BalloonTable";
@@ -11,7 +11,7 @@ import "./App.css";
 
 type ViewState =
   | { kind: "idle" }
-  | { kind: "loading" }
+  | { kind: "loading"; stage?: UploadStage }
   | { kind: "result"; result: ExtractionResult | JobRecord }
   | { kind: "error"; message: string };
 
@@ -41,7 +41,10 @@ export default function App() {
     async (file: File, templateId: string) => {
       setView({ kind: "loading" });
       try {
-        const result = await extractDrawing(config, file, { templateId });
+        const result = await extractDrawingSmart(config, file, {
+          templateId,
+          onStageChange: (stage) => setView({ kind: "loading", stage }),
+        });
         setActiveJobId(result.job_id);
         setView({ kind: "result", result });
         const nextHistory = addHistoryEntry({
@@ -87,8 +90,8 @@ export default function App() {
             <span className="app__balloon">🎈</span> Ballooned Drawing Extraction
           </h1>
           <p className="app__subtitle">
-            Upload a ballooned drawing to see what Document Intelligence + Azure OpenAI extract —
-            no sign-off, no reconciliation, this is the accuracy spike (see architecture-poc.md).
+            Upload a ballooned drawing to see what Document Intelligence + Claude extract — no
+            sign-off, no reconciliation, this is the accuracy spike (see architecture-poc.md).
           </p>
         </div>
         <ConnectionBar config={config} onSave={handleSaveConfig} onClear={handleClearConfig} />
@@ -102,7 +105,7 @@ export default function App() {
         <main className="app__main">
           <UploadPanel disabled={!config} submitting={view.kind === "loading"} onSubmit={handleUpload} />
 
-          {!config && <p className="app__hint">Configure your Function App URL and key above to get started.</p>}
+          {!config && <p className="app__hint">Configure your backend URL and key above to get started.</p>}
 
           {view.kind === "error" && (
             <div className="app__error" role="alert">
@@ -113,7 +116,9 @@ export default function App() {
           {view.kind === "loading" && (
             <div className="app__loading" role="status">
               <span className="app__spinner" aria-hidden="true" />
-              Processing — this can take up to a couple of minutes on a multi-page drawing.
+              {view.stage === "uploading"
+                ? "Uploading directly to storage…"
+                : "Processing — this can take up to a couple of minutes on a multi-page drawing."}
             </div>
           )}
 

@@ -69,11 +69,24 @@ export interface ApiErrorBody {
   openBalloonIds?: string[];
 }
 
-/** Connection details for a deployed Function App -- see poc/deployment.md §4. Held client-side
- * only (localStorage), never sent anywhere but the configured Function App itself. */
+/** wabtec_poc deploys to either host -- see wabtec_poc/deployment.md (Azure) and
+ * wabtec_poc/deployment-vercel.md (Vercel). The two use different auth header names
+ * (x-functions-key vs x-api-key), which is the only reason this needs to be known client-side. */
+export type BackendType = "azure" | "vercel";
+
+/** Connection details for a deployed backend. Held client-side only (localStorage), never sent
+ * anywhere but the configured backend itself. */
 export interface ConnectionConfig {
   baseUrl: string;
   functionKey: string;
+  backendType: BackendType;
+}
+
+/** Response from POST /api/drawings/upload-url (Vercel only) -- see api.ts's module docstring. */
+export interface CreateUploadUrlResponse {
+  jobId: string;
+  uploadUrl: string;
+  blobPath: string;
 }
 
 /** One entry in the client-side job history list (lib/storage.ts). */

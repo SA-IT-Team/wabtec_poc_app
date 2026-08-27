@@ -12,12 +12,17 @@ describe("connection config", () => {
   });
 
   it("round-trips a saved config", () => {
-    saveConnectionConfig({ baseUrl: "https://example.azurewebsites.net", functionKey: "abc123" });
-    expect(loadConnectionConfig()).toEqual({ baseUrl: "https://example.azurewebsites.net", functionKey: "abc123" });
+    saveConnectionConfig({ baseUrl: "https://example.azurewebsites.net", functionKey: "abc123", backendType: "azure" });
+    expect(loadConnectionConfig()).toEqual({ baseUrl: "https://example.azurewebsites.net", functionKey: "abc123", backendType: "azure" });
+  });
+
+  it("round-trips a vercel config", () => {
+    saveConnectionConfig({ baseUrl: "https://example.vercel.app", functionKey: "abc123", backendType: "vercel" });
+    expect(loadConnectionConfig()).toEqual({ baseUrl: "https://example.vercel.app", functionKey: "abc123", backendType: "vercel" });
   });
 
   it("clear removes it", () => {
-    saveConnectionConfig({ baseUrl: "https://example.azurewebsites.net", functionKey: "abc123" });
+    saveConnectionConfig({ baseUrl: "https://example.azurewebsites.net", functionKey: "abc123", backendType: "azure" });
     clearConnectionConfig();
     expect(loadConnectionConfig()).toBeNull();
   });
@@ -30,6 +35,11 @@ describe("connection config", () => {
   it("treats a partial (missing key) stored object as unconfigured", () => {
     localStorage.setItem("bdx-poc.connection", JSON.stringify({ baseUrl: "https://x" }));
     expect(loadConnectionConfig()).toBeNull();
+  });
+
+  it("defaults backendType to azure for a connection saved before backendType existed", () => {
+    localStorage.setItem("bdx-poc.connection", JSON.stringify({ baseUrl: "https://x", functionKey: "k" }));
+    expect(loadConnectionConfig()).toEqual({ baseUrl: "https://x", functionKey: "k", backendType: "azure" });
   });
 });
 

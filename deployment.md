@@ -1,8 +1,8 @@
 # Deployment Guide — POC Web App
 
-Scope: deploying [`POC_App/`](.) — the React front end — to **Azure Static Web Apps**, and wiring
+Scope: deploying [`wabtec_poc_app/`](.) — the React front end — to **Azure Static Web Apps**, and wiring
 it up to talk to the already-deployed `poc/` Function App backend (see
-[`../poc/deployment.md`](../poc/deployment.md), which must be done first). Like the backend, treat
+[`../wabtec_poc/deployment.md`](../wabtec_poc/deployment.md), which must be done first). Like the backend, treat
 this as disposable POC infrastructure, not a production deployment — no auth beyond the function
 key the user pastes into the UI.
 
@@ -12,7 +12,7 @@ key the user pastes into the UI.
 
 | Requirement | Notes |
 |---|---|
-| The `poc/` Function App already deployed | Follow `../poc/deployment.md` first — you need its URL and a function key. |
+| The `poc/` Function App already deployed | Follow `../wabtec_poc/deployment.md` first — you need its URL and a function key. |
 | Azure CLI (`az`) | v2.60+, logged in (`az login`). |
 | Node.js 20+, npm | Same as for local dev — `npm install && npm run build` must succeed first. |
 | **Either** a GitHub repo you can push this project to, **or** the SWA CLI for a direct one-off deploy | Two paths below — pick one. |
@@ -72,7 +72,7 @@ az functionapp cors add --name "$FUNCAPP" --resource-group "$RG" --allowed-origi
 
 ```bash
 npm install -g @azure/static-web-apps-cli
-cd POC_App
+cd wabtec_poc_app
 npm run build
 
 DEPLOYMENT_TOKEN=$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group "$RG" --query "properties.apiKey" -o tsv)
@@ -85,7 +85,7 @@ every `npm run build` to push a new version.
 ### 4.2 GitHub Actions (repeatable CI/CD)
 
 The workflow at [`.github/workflows/azure-static-web-apps.yml`](.github/workflows/azure-static-web-apps.yml)
-is already set up to build, test, and deploy `POC_App/` on every push to `main`.
+is already set up to build, test, and deploy `wabtec_poc_app/` on every push to `main`.
 
 1. Push this repo to GitHub.
 2. Get the deployment token and add it as a GitHub Actions secret:
@@ -108,7 +108,7 @@ point of having it in CI rather than just locally.
 open "https://${SWA_HOSTNAME}"     # or just paste it into a browser
 ```
 
-Paste in the Function App URL and key (§4 of `../poc/deployment.md`), upload a test drawing, and
+Paste in the Function App URL and key (§4 of `../wabtec_poc/deployment.md`), upload a test drawing, and
 confirm the request succeeds. If it fails at the network level (not a JSON error response), it's
 almost always the CORS step (§3) — check the browser console for the specific blocked-origin
 message.
@@ -127,7 +127,7 @@ az staticwebapp delete --name "$SWA_NAME" --resource-group "$RG" --yes
 ```
 
 If you're tearing down the whole POC (backend included), `az group delete` on the shared resource
-group (see `../poc/deployment.md` §7) removes this too.
+group (see `../wabtec_poc/deployment.md` §7) removes this too.
 
 ---
 
@@ -139,4 +139,4 @@ group (see `../poc/deployment.md` §7) removes this too.
 | App loads but "Save" on the connection form does nothing useful, then the extract call 401/403s | Function key is wrong or was regenerated — re-run `az functionapp keys list` against the Function App and re-paste it. |
 | GitHub Actions deploy step fails with an auth error | `AZURE_STATIC_WEB_APPS_API_TOKEN` secret is missing, wrong, or the SWA's deployment token was rotated — regenerate via `az staticwebapp secrets list` and update the GitHub secret. |
 | `swa deploy` succeeds but the site still shows the old build | Static Web Apps' CDN can take a minute or two to invalidate — hard-refresh, or wait briefly before re-checking. |
-| Build fails in CI but works locally | Confirm `POC_App/package-lock.json` is committed — `npm ci` (used in the workflow) requires it and will fail without one, unlike `npm install`. |
+| Build fails in CI but works locally | Confirm `wabtec_poc_app/package-lock.json` is committed — `npm ci` (used in the workflow) requires it and will fail without one, unlike `npm install`. |
