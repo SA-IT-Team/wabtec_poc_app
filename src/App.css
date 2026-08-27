@@ -1,0 +1,126 @@
+.app {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2rem clamp(1rem, 4vw, 2.5rem) 4rem;
+}
+
+.app__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding-bottom: 1.75rem;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 2rem;
+}
+
+.app__title-block {
+  max-width: 46ch;
+}
+
+.app__eyebrow {
+  display: block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin-bottom: 0.5rem;
+}
+
+.app__title-block h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: clamp(1.6rem, 3.4vw, 2.2rem);
+}
+
+.app__balloon {
+  font-size: 1.4em;
+}
+
+.app__subtitle {
+  margin: 0.75rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+  text-transform: none;
+  letter-spacing: normal;
+  font-family: "Public Sans", sans-serif;
+  font-weight: 400;
+}
+
+.app__layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.app__sidebar {
+  position: sticky;
+  top: 1.5rem;
+}
+
+.app__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.app__hint {
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+}
+
+.app__error {
+  background: var(--bad-soft);
+  color: var(--bad);
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--line));
+  border-radius: 6px;
+  padding: 0.85rem 1.1rem;
+  font-size: 0.9rem;
+}
+
+.app__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+}
+
+.app__spinner {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  animation: app-spin 0.8s linear infinite;
+  flex: none;
+}
+
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.app__results {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (max-width: 860px) {
+  .app__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .app__sidebar {
+    position: relative;
+    top: 0;
+  }
+}

@@ -1,0 +1,89 @@
+.balloon-table__wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  background: var(--surface);
+}
+
+.balloon-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.balloon-table thead th {
+  text-align: left;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 0.6rem 0.8rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.balloon-table tbody td {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  color: var(--ink);
+}
+
+.balloon-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.balloon-table__row--low-confidence {
+  background: var(--warn-soft);
+}
+
+.balloon-table__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.9rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.balloon-table__mono {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.balloon-table__confidence {
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--good);
+}
+
+.balloon-table__confidence--low {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.balloon-table__notes {
+  max-width: 28ch;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.balloon-table__error {
+  color: var(--bad);
+}
+
+.balloon-table__empty {
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+}

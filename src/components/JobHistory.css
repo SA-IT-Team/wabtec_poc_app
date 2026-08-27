@@ -1,0 +1,73 @@
+.job-history {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 1rem;
+}
+
+.job-history__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.job-history__title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.job-history__empty {
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+  margin: 0;
+}
+
+.job-history__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.job-history__item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.job-history__item:hover {
+  background: var(--surface-2);
+}
+
+.job-history__item--active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.job-history__filename {
+  font-size: 0.84rem;
+  color: var(--ink);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.job-history__meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+}
