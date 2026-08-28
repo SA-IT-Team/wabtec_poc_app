@@ -3,10 +3,51 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { VERCEL_DIRECT_UPLOAD_MAX_BYTES } from "./lib/api";
-import type { CreateUploadUrlResponse, ExtractionResult } from "./lib/types";
+import type { CreateUploadUrlResponse, ExtractionResult, ReconciliationRecord } from "./lib/types";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+}
+
+function reconciliationFor(jobId: string, drawingNumber: string | null, submittedBy: string | null = null): ReconciliationRecord {
+  return {
+    job_id: jobId,
+    drawing_number: drawingNumber,
+    revision: null,
+    submitted_by: submittedBy,
+    balloons: [
+      {
+        page: 1,
+        balloon_number: 12,
+        extracted: {
+          balloon_number: 12,
+          page: 1,
+          bounding_box: null,
+          nominal_value: 25.4,
+          unit: "mm",
+          tolerance_type: "bilateral",
+          upper_tol: 0.05,
+          lower_tol: -0.05,
+          gdt: null,
+          surface_finish: null,
+          notes: null,
+          confidence: 0.94,
+          extraction_error: null,
+          blocked: false,
+        },
+        reviewed: null,
+        status: "pending",
+        discrepancy: false,
+        reviewer_id: null,
+        reviewed_at: null,
+        notes: null,
+      },
+    ],
+    signed_off: false,
+    signed_off_by: null,
+    signed_off_at: null,
+    created_at: "2026-08-26T00:00:00Z",
+  };
 }
 
 beforeEach(() => {
@@ -43,7 +84,7 @@ describe("App", () => {
     expect(screen.queryByLabelText(/backend url/i)).not.toBeInTheDocument();
   });
 
-  it("uploads a file and renders the extraction result, including a mismatch banner", async () => {
+  it("uploads a file and renders the draft result with pending reconciliation, including a mismatch banner", async () => {
     const user = userEvent.setup();
     const result: ExtractionResult = {
       job_id: "job-abc12345",
@@ -70,9 +111,23 @@ describe("App", () => {
           blocked: false,
         },
       ],
-      export_url: "https://example.blob.core.windows.net/exports/job-abc12345/characteristics.xlsx",
+      export_url: null,
+      reconciliation: {
+        job_id: "job-abc12345",
+        total_balloons: 2,
+        pending: 2,
+        reconciled: 0,
+        cannot_determine: 0,
+        percent_complete: 0,
+        ready_for_signoff: false,
+        signed_off: false,
+        signed_off_by: null,
+        signed_off_at: null,
+      },
     };
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(result));
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(result)) // extract
+      .mockResolvedValueOnce(jsonResponse(reconciliationFor("job-abc12345", "DWG-10245"))); // ReconciliationPanel's own fetch
 
     render(<App />);
     await connect(user);
@@ -84,7 +139,9 @@ describe("App", () => {
 
     await waitFor(() => expect(screen.getByText("DWG-10245")).toBeInTheDocument());
     expect(screen.getByText(/balloon count mismatch/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /download excel export/i })).toHaveAttribute("href", result.export_url!);
+    // extraction no longer auto-exports -- no download link until reconciled + signed off
+    expect(screen.queryByRole("link", { name: /download excel export/i })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("0 / 1 reconciled")).toBeInTheDocument());
 
     // it also lands in job history
     const history = screen.getByText(/recent jobs/i).closest<HTMLElement>(".job-history")!;
@@ -120,8 +177,22 @@ describe("App", () => {
       balloon_count_mismatch: false,
       balloons: [],
       export_url: null,
+      reconciliation: {
+        job_id: "job-1",
+        total_balloons: 1,
+        pending: 1,
+        reconciled: 0,
+        cannot_determine: 0,
+        percent_complete: 0,
+        ready_for_signoff: false,
+        signed_off: false,
+        signed_off_by: null,
+        signed_off_at: null,
+      },
     };
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(result));
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(result))
+      .mockResolvedValueOnce(jsonResponse(reconciliationFor("job-1", "DWG-1")));
 
     render(<App />);
     await connect(user);
@@ -132,7 +203,7 @@ describe("App", () => {
     await user.upload(input, file);
     await user.click(screen.getByRole("button", { name: /extract/i }));
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
     const [url, init] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("https://bdx-poc.vercel.app/api/drawings/extract");
     expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("test-secret");
@@ -153,12 +224,25 @@ describe("App", () => {
       balloon_count_extracted: 5,
       balloon_count_mismatch: false,
       balloons: [],
-      export_url: "https://example.blob/exports/job-big.xlsx",
+      export_url: null,
+      reconciliation: {
+        job_id: "job-big",
+        total_balloons: 5,
+        pending: 5,
+        reconciled: 0,
+        cannot_determine: 0,
+        percent_complete: 0,
+        ready_for_signoff: false,
+        signed_off: false,
+        signed_off_by: null,
+        signed_off_at: null,
+      },
     };
     vi.mocked(fetch)
       .mockResolvedValueOnce(jsonResponse(uploadUrlResponse, 201)) // POST upload-url
       .mockResolvedValueOnce(new Response(null, { status: 201 })) // PUT to blob
-      .mockResolvedValueOnce(jsonResponse(result)); // POST process
+      .mockResolvedValueOnce(jsonResponse(result)) // POST process
+      .mockResolvedValueOnce(jsonResponse(reconciliationFor("job-big", "DWG-BIG"))); // ReconciliationPanel's fetch
 
     render(<App />);
     await connect(user);
@@ -169,12 +253,79 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /extract/i }));
 
     await waitFor(() => expect(screen.getByText("DWG-BIG")).toBeInTheDocument());
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(4);
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe("https://bdx-poc.vercel.app/api/drawings/upload-url");
     expect(vi.mocked(fetch).mock.calls[1][0]).toBe(uploadUrlResponse.uploadUrl);
     expect(vi.mocked(fetch).mock.calls[2][0]).toBe("https://bdx-poc.vercel.app/api/drawings/job-big/process");
     // step 2 (the PUT) must not carry this app's auth header -- it goes straight to Blob Storage
     const putInit = vi.mocked(fetch).mock.calls[1][1];
     expect((putInit?.headers as Record<string, string>)["x-api-key"]).toBeUndefined();
+  });
+
+  it("takes a drawing through review, signoff, and export via the reconciliation panel", async () => {
+    const user = userEvent.setup();
+    const result: ExtractionResult = {
+      job_id: "job-1",
+      drawing_number: "DWG-1",
+      revision: "A",
+      balloon_count_detected: 1,
+      balloon_count_extracted: 1,
+      balloon_count_mismatch: false,
+      balloons: [],
+      export_url: null,
+      reconciliation: {
+        job_id: "job-1",
+        total_balloons: 1,
+        pending: 1,
+        reconciled: 0,
+        cannot_determine: 0,
+        percent_complete: 0,
+        ready_for_signoff: false,
+        signed_off: false,
+        signed_off_by: null,
+        signed_off_at: null,
+      },
+    };
+    const pending = reconciliationFor("job-1", "DWG-1", "alice");
+    const reconciled = { ...pending, balloons: [{ ...pending.balloons[0], status: "reconciled" as const, reviewer_id: "bob", reviewed: pending.balloons[0].extracted }] };
+    const signedOff = { ...reconciled, signed_off: true, signed_off_by: "bob", signed_off_at: "2026-08-26T00:05:00Z" };
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(result)) // extract
+      .mockResolvedValueOnce(jsonResponse(pending)) // ReconciliationPanel initial load
+      .mockResolvedValueOnce(jsonResponse(reconciled.balloons[0])) // POST review (confirm)
+      .mockResolvedValueOnce(jsonResponse(reconciled)) // reload after review
+      .mockResolvedValueOnce(jsonResponse(signedOff)) // POST signoff
+      .mockResolvedValueOnce(jsonResponse(signedOff)) // reload after signoff
+      .mockResolvedValueOnce(jsonResponse({ jobId: "job-1", exportUrl: "https://example/export.xlsx" })); // POST export
+
+    render(<App />);
+    await connect(user);
+
+    const file = new File(["%PDF-1.4"], "dwg.pdf", { type: "application/pdf" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, file);
+    await user.click(screen.getByRole("button", { name: /extract/i }));
+
+    await waitFor(() => expect(screen.getByText("0 / 1 reconciled")).toBeInTheDocument());
+
+    await user.type(screen.getByLabelText(/reviewing \/ signing as/i), "bob");
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /sign off/i })).not.toBeDisabled());
+    await user.click(screen.getByRole("button", { name: /sign off/i }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /export excel/i })).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /export excel/i }));
+
+    await waitFor(() => expect(screen.getByRole("link", { name: /download excel export/i })).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: /download excel export/i })).toHaveAttribute(
+      "href",
+      "https://example/export.xlsx"
+    );
+
+    const reviewCall = vi.mocked(fetch).mock.calls[2];
+    expect(reviewCall[0]).toBe("https://bdx-poc.vercel.app/api/drawings/job-1/balloons/1/12/review");
+    expect(JSON.parse((reviewCall[1]?.body as string) ?? "{}")).toMatchObject({ reviewerId: "bob", action: "confirm" });
   });
 });

@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiClientError, extractDrawingSmart, getDrawingResult, type UploadStage } from "./lib/api";
-import { addHistoryEntry, clearConnectionConfig, clearHistory, loadConnectionConfig, loadHistory, saveConnectionConfig } from "./lib/storage";
+import {
+  addHistoryEntry,
+  clearConnectionConfig,
+  clearHistory,
+  loadConnectionConfig,
+  loadHistory,
+  loadIdentity,
+  saveConnectionConfig,
+  saveIdentity,
+} from "./lib/storage";
 import type { ConnectionConfig, ExtractionResult, HistoryEntry, JobRecord } from "./lib/types";
 import { BalloonTable } from "./components/BalloonTable";
 import { ConnectionBar } from "./components/ConnectionBar";
 import { JobHistory } from "./components/JobHistory";
+import { ReconciliationPanel } from "./components/ReconciliationPanel";
 import { ResultsSummary } from "./components/ResultsSummary";
 import { UploadPanel } from "./components/UploadPanel";
 import "./App.css";
@@ -18,6 +28,7 @@ type ViewState =
 export default function App() {
   const [config, setConfig] = useState<ConnectionConfig | null>(() => loadConnectionConfig());
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
+  const [identity, setIdentity] = useState<string>(() => loadIdentity());
   const [view, setView] = useState<ViewState>({ kind: "idle" });
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
@@ -37,12 +48,18 @@ export default function App() {
     clearConnectionConfig();
   }, []);
 
+  const handleIdentityChange = useCallback((name: string) => {
+    setIdentity(name);
+    saveIdentity(name);
+  }, []);
+
   const handleUpload = useCallback(
     async (file: File, templateId: string) => {
       setView({ kind: "loading" });
       try {
         const result = await extractDrawingSmart(config, file, {
           templateId,
+          submittedBy: identity || undefined,
           onStageChange: (stage) => setView({ kind: "loading", stage }),
         });
         setActiveJobId(result.job_id);
@@ -59,7 +76,7 @@ export default function App() {
         setView({ kind: "error", message: describeError(err) });
       }
     },
-    [config]
+    [config, identity]
   );
 
   const handleSelectHistory = useCallback(
@@ -90,8 +107,9 @@ export default function App() {
             <span className="app__balloon">🎈</span> Ballooned Drawing Extraction
           </h1>
           <p className="app__subtitle">
-            Upload a ballooned drawing to see what Document Intelligence + Claude extract — no
-            sign-off, no reconciliation, this is the accuracy spike (see architecture-poc.md).
+            Upload a ballooned drawing to see what Document Intelligence + Claude extract, then
+            review every balloon against the source before it's exportable (see
+            architecture-poc.md and src/reconciliation.py).
           </p>
         </div>
         <ConnectionBar config={config} onSave={handleSaveConfig} onClear={handleClearConfig} />
@@ -126,6 +144,14 @@ export default function App() {
             <section className="app__results">
               <ResultsSummary result={view.result} />
               {"balloons" in view.result && <BalloonTable balloons={view.result.balloons} />}
+              {activeJobId && (
+                <ReconciliationPanel
+                  jobId={activeJobId}
+                  config={config}
+                  identity={identity}
+                  onIdentityChange={handleIdentityChange}
+                />
+              )}
             </section>
           )}
         </main>

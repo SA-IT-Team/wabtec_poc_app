@@ -45,6 +45,7 @@ export interface ExtractionResult {
   balloon_count_mismatch: boolean;
   balloons: ExtractedBalloon[];
   export_url: string | null;
+  reconciliation: ReconciliationStatus | null;
 }
 
 export type JobStatus = "Processing" | "Complete" | "Failed";
@@ -66,7 +67,9 @@ export interface JobRecord {
 export interface ApiErrorBody {
   error: string;
   message: string;
-  openBalloonIds?: string[];
+  /** Present on a 409 IncompleteReconciliation response -- exactly which balloons are still
+   * blocking sign-off/export (app.py's _map_domain_error). */
+  openBalloons?: { page: number; balloonNumber: number }[];
 }
 
 /** Connection details for the backend: its base URL (a Vercel deployment, or
@@ -82,6 +85,55 @@ export interface CreateUploadUrlResponse {
   jobId: string;
   uploadUrl: string;
   blobPath: string;
+}
+
+/**
+ * Reconciliation: the human quality-check pass every balloon goes through before its drawing is
+ * exportable -- see wabtec_poc/src/reconciliation.py for the state machine these mirror.
+ */
+
+export type ReviewAction = "confirm" | "correct" | "cannot_determine";
+
+export type BalloonReviewStatus = "pending" | "reconciled" | "cannot_determine";
+
+export interface BalloonReviewRecord {
+  page: number;
+  balloon_number: number;
+  extracted: ExtractedBalloon;
+  reviewed: ExtractedBalloon | null;
+  status: BalloonReviewStatus;
+  discrepancy: boolean;
+  reviewer_id: string | null;
+  reviewed_at: string | null;
+  notes: string | null;
+}
+
+/** Full state for one drawing -- GET /api/drawings/{jobId}/reconciliation, and the shape POST
+ * .../signoff returns. */
+export interface ReconciliationRecord {
+  job_id: string;
+  drawing_number: string | null;
+  revision: string | null;
+  submitted_by: string | null;
+  balloons: BalloonReviewRecord[];
+  signed_off: boolean;
+  signed_off_by: string | null;
+  signed_off_at: string | null;
+  created_at: string;
+}
+
+/** Summary shape embedded in ExtractionResult right after extraction. */
+export interface ReconciliationStatus {
+  job_id: string;
+  total_balloons: number;
+  pending: number;
+  reconciled: number;
+  cannot_determine: number;
+  percent_complete: number;
+  ready_for_signoff: boolean;
+  signed_off: boolean;
+  signed_off_by: string | null;
+  signed_off_at: string | null;
 }
 
 /** One entry in the client-side job history list (lib/storage.ts). */

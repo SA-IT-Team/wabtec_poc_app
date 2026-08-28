@@ -1,14 +1,22 @@
 /**
  * Typed client for the wabtec_poc backend:
- *   POST /api/drawings/extract          -- upload + synchronously process one drawing
- *   POST /api/drawings/upload-url       -- get a direct-to-blob SAS URL (large-file path, step 1)
- *   POST /api/drawings/<jobId>/process  -- process a drawing already uploaded via that SAS (step 2)
- *   GET  /api/drawings/{jobId}          -- re-fetch a previously computed job record
+ *   POST /api/drawings/extract                                       -- upload + synchronously extract one drawing (draft)
+ *   POST /api/drawings/upload-url                                    -- get a direct-to-blob SAS URL (large-file path, step 1)
+ *   POST /api/drawings/<jobId>/process                               -- extract a drawing already uploaded via that SAS (step 2)
+ *   GET  /api/drawings/{jobId}                                       -- re-fetch a previously computed job record
+ *   GET  /api/drawings/{jobId}/reconciliation                        -- full reconciliation state, every balloon
+ *   POST /api/drawings/{jobId}/balloons/{page}/{balloonNumber}/review -- confirm/correct/flag one balloon
+ *   POST /api/drawings/{jobId}/signoff                                -- sign off once every balloon is reconciled
+ *   POST /api/drawings/{jobId}/export                                  -- generate the Excel, only once signed off
  *
  * Auth is a single shared secret sent as `x-api-key`, matching the backend's API_ACCESS_KEY (see
  * wabtec_poc/app.py's module docstring for why it needs one at all -- there is no user auth, see
  * wabtec_poc/doc/architecture-poc.md §3.3). The key is supplied by whoever is running this app
  * against their own deployment and stored only in that browser's localStorage.
+ *
+ * Extraction no longer returns an immediate export_url -- it returns a *draft* with every balloon
+ * `pending`. Nothing is exportable until each balloon has been reviewed and the drawing signed
+ * off (the reconciliation functions below) -- see wabtec_poc/src/reconciliation.py.
  *
  * Why two upload paths: Vercel caps request/response bodies at 4.5MB, platform-wide, not
  * configurable. Real multi-page ballooned drawings routinely exceed that, so anything above
@@ -20,8 +28,11 @@ import type {
   ApiErrorBody,
   ConnectionConfig,
   CreateUploadUrlResponse,
+  ExtractedBalloon,
   ExtractionResult,
   JobRecord,
+  ReconciliationRecord,
+  ReviewAction,
 } from "./types";
 
 export class ApiClientError extends Error {
@@ -84,6 +95,10 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export interface ExtractOptions {
   templateId?: string;
+  /** Self-declared identity, recorded so the reconciliation workflow can enforce segregation of
+   * duties (a reviewer/signer can't be the same person who submitted the drawing). Not
+   * authenticated -- see the module docstring. */
+  submittedBy?: string;
   signal?: AbortSignal;
 }
 
@@ -100,6 +115,9 @@ export async function extractDrawing(
   form.append("file", file);
   if (options.templateId) {
     form.append("templateId", options.templateId);
+  }
+  if (options.submittedBy) {
+    form.append("submittedBy", options.submittedBy);
   }
 
   const res = await fetch(`${trimTrailingSlash(config.baseUrl)}/api/drawings/extract`, {
@@ -172,6 +190,7 @@ export async function processDrawing(
   jobId: string,
   blobPath: string,
   contentType: string,
+  submittedBy?: string,
   signal?: AbortSignal
 ): Promise<ExtractionResult> {
   requireConfig(config);
@@ -179,7 +198,7 @@ export async function processDrawing(
   const res = await fetch(`${trimTrailingSlash(config.baseUrl)}/api/drawings/${encodeURIComponent(jobId)}/process`, {
     method: "POST",
     headers: { ...authHeaders(config), "Content-Type": "application/json" },
-    body: JSON.stringify({ blobPath, contentType }),
+    body: JSON.stringify({ blobPath, contentType, submittedBy: submittedBy || undefined }),
     signal,
   });
   return handleResponse<ExtractionResult>(res);
@@ -194,6 +213,7 @@ export async function extractLargeDrawing(
   config: ConnectionConfig | null,
   file: File,
   onStageChange?: (stage: UploadStage) => void,
+  submittedBy?: string,
   signal?: AbortSignal
 ): Promise<ExtractionResult> {
   requireConfig(config);
@@ -204,7 +224,7 @@ export async function extractLargeDrawing(
   await uploadFileToBlob(uploadUrl, file, signal);
 
   onStageChange?.("processing");
-  return processDrawing(config, jobId, blobPath, contentType, signal);
+  return processDrawing(config, jobId, blobPath, contentType, submittedBy, signal);
 }
 
 /** Picks the upload path by file size, so callers (App.tsx) don't need to know the 4.5MB rule
@@ -213,12 +233,97 @@ export async function extractLargeDrawing(
 export async function extractDrawingSmart(
   config: ConnectionConfig | null,
   file: File,
-  options: { templateId?: string; onStageChange?: (stage: UploadStage) => void; signal?: AbortSignal } = {}
+  options: ExtractOptions & { onStageChange?: (stage: UploadStage) => void } = {}
 ): Promise<ExtractionResult> {
   requireConfig(config);
 
   if (file.size > VERCEL_DIRECT_UPLOAD_MAX_BYTES) {
-    return extractLargeDrawing(config, file, options.onStageChange, options.signal);
+    return extractLargeDrawing(config, file, options.onStageChange, options.submittedBy, options.signal);
   }
-  return extractDrawing(config, file, { templateId: options.templateId, signal: options.signal });
+  return extractDrawing(config, file, options);
+}
+
+// ---------------------------------------------------------------------------------------
+// Reconciliation: the human quality-check pass -- see wabtec_poc/src/reconciliation.py
+// ---------------------------------------------------------------------------------------
+
+export async function getReconciliation(
+  config: ConnectionConfig | null,
+  jobId: string,
+  signal?: AbortSignal
+): Promise<ReconciliationRecord> {
+  requireConfig(config);
+
+  const res = await fetch(`${trimTrailingSlash(config.baseUrl)}/api/drawings/${encodeURIComponent(jobId)}/reconciliation`, {
+    headers: authHeaders(config),
+    signal,
+  });
+  return handleResponse<ReconciliationRecord>(res);
+}
+
+export interface ReviewBalloonOptions {
+  correctedValue?: ExtractedBalloon;
+  notes?: string;
+  signal?: AbortSignal;
+}
+
+export async function reviewBalloon(
+  config: ConnectionConfig | null,
+  jobId: string,
+  page: number,
+  balloonNumber: number,
+  reviewerId: string,
+  action: ReviewAction,
+  options: ReviewBalloonOptions = {}
+): Promise<ReconciliationRecord["balloons"][number]> {
+  requireConfig(config);
+
+  const res = await fetch(
+    `${trimTrailingSlash(config.baseUrl)}/api/drawings/${encodeURIComponent(jobId)}/balloons/${page}/${balloonNumber}/review`,
+    {
+      method: "POST",
+      headers: { ...authHeaders(config), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reviewerId,
+        action,
+        correctedValue: options.correctedValue,
+        notes: options.notes,
+      }),
+      signal: options.signal,
+    }
+  );
+  return handleResponse(res);
+}
+
+export async function signOff(
+  config: ConnectionConfig | null,
+  jobId: string,
+  signerId: string,
+  signal?: AbortSignal
+): Promise<ReconciliationRecord> {
+  requireConfig(config);
+
+  const res = await fetch(`${trimTrailingSlash(config.baseUrl)}/api/drawings/${encodeURIComponent(jobId)}/signoff`, {
+    method: "POST",
+    headers: { ...authHeaders(config), "Content-Type": "application/json" },
+    body: JSON.stringify({ signerId }),
+    signal,
+  });
+  return handleResponse<ReconciliationRecord>(res);
+}
+
+export interface ExportResponse {
+  jobId: string;
+  exportUrl: string;
+}
+
+export async function exportDrawing(config: ConnectionConfig | null, jobId: string, signal?: AbortSignal): Promise<ExportResponse> {
+  requireConfig(config);
+
+  const res = await fetch(`${trimTrailingSlash(config.baseUrl)}/api/drawings/${encodeURIComponent(jobId)}/export`, {
+    method: "POST",
+    headers: authHeaders(config),
+    signal,
+  });
+  return handleResponse<ExportResponse>(res);
 }

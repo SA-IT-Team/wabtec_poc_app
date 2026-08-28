@@ -7,7 +7,27 @@ import type { ConnectionConfig, HistoryEntry } from "./types";
 
 const CONNECTION_KEY = "bdx-poc.connection";
 const HISTORY_KEY = "bdx-poc.history";
+const IDENTITY_KEY = "bdx-poc.identity";
 const MAX_HISTORY_ENTRIES = 25;
+
+/** The self-declared name used as submittedBy/reviewerId/signerId across the reconciliation
+ * workflow -- not authenticated, just remembered per-browser so you don't retype it constantly.
+ * See ReconciliationPanel and wabtec_poc/src/reconciliation.py's module docstring. */
+export function loadIdentity(): string {
+  try {
+    return localStorage.getItem(IDENTITY_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveIdentity(name: string): void {
+  try {
+    localStorage.setItem(IDENTITY_KEY, name);
+  } catch {
+    /* see saveConnectionConfig */
+  }
+}
 
 export function loadConnectionConfig(): ConnectionConfig | null {
   try {
