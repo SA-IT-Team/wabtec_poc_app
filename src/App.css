@@ -1,5 +1,5 @@
 .app {
-  max-width: 1180px;
+  max-width: 1360px;
   margin: 0 auto;
   padding: 2rem clamp(1rem, 4vw, 2.5rem) 4rem;
 }
@@ -52,7 +52,7 @@
 
 .app__layout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 260px;
   gap: 2rem;
   align-items: start;
 }
@@ -60,6 +60,20 @@
 .app__sidebar {
   position: sticky;
   top: 1.5rem;
+}
+
+.app__results-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.app__results-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
 }
 
 .app__main {
@@ -114,7 +128,7 @@
   gap: 1.25rem;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 960px) {
   .app__layout {
     grid-template-columns: 1fr;
   }
@@ -122,5 +136,11 @@
   .app__sidebar {
     position: relative;
     top: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .app__results-grid {
+    grid-template-columns: 1fr;
   }
 }

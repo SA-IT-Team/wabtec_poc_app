@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError, extractDrawingSmart, getDrawingResult, type UploadStage } from "./lib/api";
 import {
   addHistoryEntry,
@@ -13,6 +13,7 @@ import {
 import type { ConnectionConfig, ExtractionResult, HistoryEntry, JobRecord } from "./lib/types";
 import { BalloonTable } from "./components/BalloonTable";
 import { ConnectionBar } from "./components/ConnectionBar";
+import { DrawingPreview } from "./components/DrawingPreview";
 import { JobHistory } from "./components/JobHistory";
 import { ReconciliationPanel } from "./components/ReconciliationPanel";
 import { ResultsSummary } from "./components/ResultsSummary";
@@ -25,12 +26,29 @@ type ViewState =
   | { kind: "result"; result: ExtractionResult | JobRecord }
   | { kind: "error"; message: string };
 
+/** The just-uploaded file, kept only as an object URL so the drawing itself can be shown
+ * alongside its extraction/reconciliation results. Tagged with jobId so it's only rendered
+ * while it actually matches the job on screen -- reopening a past job from history has no
+ * local file to preview (the browser never re-downloads the original upload). */
+type PreviewState = { jobId: string; url: string; name: string; type: string };
+
 export default function App() {
   const [config, setConfig] = useState<ConnectionConfig | null>(() => loadConnectionConfig());
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
   const [identity, setIdentity] = useState<string>(() => loadIdentity());
   const [view, setView] = useState<ViewState>({ kind: "idle" });
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    previewUrlRef.current = preview?.url ?? null;
+  }, [preview]);
+
+  // Revoke the last object URL on unmount so the browser can free the blob.
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+  }, []);
 
   useEffect(() => {
     document.title = config
@@ -64,6 +82,10 @@ export default function App() {
         });
         setActiveJobId(result.job_id);
         setView({ kind: "result", result });
+        setPreview((prev) => {
+          if (prev) URL.revokeObjectURL(prev.url);
+          return { jobId: result.job_id, url: URL.createObjectURL(file), name: file.name, type: file.type };
+        });
         const nextHistory = addHistoryEntry({
           jobId: result.job_id,
           fileName: file.name,
@@ -116,10 +138,6 @@ export default function App() {
       </header>
 
       <div className="app__layout">
-        <aside className="app__sidebar">
-          <JobHistory entries={history} activeJobId={activeJobId} onSelect={handleSelectHistory} onClear={handleClearHistory} />
-        </aside>
-
         <main className="app__main">
           <UploadPanel disabled={!config} submitting={view.kind === "loading"} onSubmit={handleUpload} />
 
@@ -142,19 +160,34 @@ export default function App() {
 
           {view.kind === "result" && (
             <section className="app__results">
-              <ResultsSummary result={view.result} />
-              {"balloons" in view.result && <BalloonTable balloons={view.result.balloons} />}
-              {activeJobId && (
-                <ReconciliationPanel
-                  jobId={activeJobId}
-                  config={config}
-                  identity={identity}
-                  onIdentityChange={handleIdentityChange}
-                />
+              {preview && preview.jobId === activeJobId && (
+                <DrawingPreview url={preview.url} name={preview.name} type={preview.type} />
               )}
+
+              <div className="app__results-grid">
+                <div className="app__results-col">
+                  <ResultsSummary result={view.result} />
+                  {"balloons" in view.result && <BalloonTable balloons={view.result.balloons} />}
+                </div>
+
+                {activeJobId && (
+                  <div className="app__results-col">
+                    <ReconciliationPanel
+                      jobId={activeJobId}
+                      config={config}
+                      identity={identity}
+                      onIdentityChange={handleIdentityChange}
+                    />
+                  </div>
+                )}
+              </div>
             </section>
           )}
         </main>
+
+        <aside className="app__sidebar">
+          <JobHistory entries={history} activeJobId={activeJobId} onSelect={handleSelectHistory} onClear={handleClearHistory} />
+        </aside>
       </div>
     </div>
   );
