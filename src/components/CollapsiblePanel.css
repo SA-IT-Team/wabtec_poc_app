@@ -1,0 +1,61 @@
+.collapsible-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.collapsible-panel__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.collapsible-panel--collapsed .collapsible-panel__header {
+  padding-bottom: 0.9rem;
+}
+
+.collapsible-panel__header:hover {
+  background: var(--surface-2);
+}
+
+.collapsible-panel__chevron {
+  flex: none;
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+  width: 1rem;
+  text-align: center;
+}
+
+.collapsible-panel__title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.collapsible-panel__title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.collapsible-panel__subtitle {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.collapsible-panel__body {
+  padding: 0 1rem 1rem;
+}

@@ -13,6 +13,7 @@ import {
 import type { ConnectionConfig, ExtractionResult, HistoryEntry, JobRecord } from "./lib/types";
 import { AssistantPanel } from "./components/AssistantPanel";
 import { BalloonTable } from "./components/BalloonTable";
+import { CollapsiblePanel } from "./components/CollapsiblePanel";
 import { ConnectionBar } from "./components/ConnectionBar";
 import { DrawingPreview } from "./components/DrawingPreview";
 import { JobHistory } from "./components/JobHistory";
@@ -182,14 +183,24 @@ export default function App() {
                   </div>
                 )}
               </div>
-
-              {activeJobId && <AssistantPanel jobId={activeJobId} config={config} />}
             </section>
           )}
         </main>
 
         <aside className="app__sidebar">
-          <JobHistory entries={history} activeJobId={activeJobId} onSelect={handleSelectHistory} onClear={handleClearHistory} />
+          <CollapsiblePanel title="Recent jobs" storageKey="recent-jobs">
+            <JobHistory entries={history} activeJobId={activeJobId} onSelect={handleSelectHistory} onClear={handleClearHistory} />
+          </CollapsiblePanel>
+
+          {activeJobId && (
+            <CollapsiblePanel
+              title="AI assistant"
+              subtitle="Analysis and feedback on this drawing's data"
+              storageKey="ai-assistant"
+            >
+              <AssistantPanel jobId={activeJobId} config={config} />
+            </CollapsiblePanel>
+          )}
         </aside>
       </div>
     </div>

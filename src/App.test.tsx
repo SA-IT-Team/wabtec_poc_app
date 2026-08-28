@@ -144,7 +144,7 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText("0 / 1 reconciled")).toBeInTheDocument());
 
     // it also lands in job history
-    const history = screen.getByText(/recent jobs/i).closest<HTMLElement>(".job-history")!;
+    const history = screen.getByText(/recent jobs/i).closest<HTMLElement>(".collapsible-panel")!;
     expect(within(history).getByText("dwg.pdf")).toBeInTheDocument();
   });
 

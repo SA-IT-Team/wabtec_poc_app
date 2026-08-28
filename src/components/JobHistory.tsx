@@ -12,14 +12,13 @@ interface JobHistoryProps {
 export function JobHistory({ entries, activeJobId, onSelect, onClear }: JobHistoryProps) {
   return (
     <div className="job-history">
-      <div className="job-history__head">
-        <span className="job-history__title">Recent jobs</span>
-        {entries.length > 0 && (
+      {entries.length > 0 && (
+        <div className="job-history__actions">
           <button type="button" className="btn btn--ghost btn--small" onClick={onClear}>
             Clear
           </button>
-        )}
-      </div>
+        </div>
+      )}
       {entries.length === 0 ? (
         <p className="job-history__empty">Nothing extracted yet in this browser.</p>
       ) : (

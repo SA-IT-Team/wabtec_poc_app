@@ -80,36 +80,26 @@ export function AssistantPanel({ jobId, config }: AssistantPanelProps) {
   );
 
   return (
-    <section className="assistant-panel">
-      <div className="assistant-panel__head">
-        <div>
-          <h3>AI Assistant</h3>
-          <p className="assistant-panel__subtitle">
-            General analysis and feedback on this drawing's data — missing information, incomplete
-            data, inconsistencies between sheets, and common mistakes. An assistant, not a source of
-            truth: verify anything it flags against the drawing yourself.
-          </p>
-        </div>
-        <div className="assistant-panel__tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "feedback"}
-            className={`assistant-panel__tab${tab === "feedback" ? " assistant-panel__tab--active" : ""}`}
-            onClick={() => setTab("feedback")}
-          >
-            Feedback
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "chat"}
-            className={`assistant-panel__tab${tab === "chat" ? " assistant-panel__tab--active" : ""}`}
-            onClick={() => setTab("chat")}
-          >
-            Ask a question
-          </button>
-        </div>
+    <div className="assistant-panel">
+      <div className="assistant-panel__tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "feedback"}
+          className={`assistant-panel__tab${tab === "feedback" ? " assistant-panel__tab--active" : ""}`}
+          onClick={() => setTab("feedback")}
+        >
+          Feedback
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "chat"}
+          className={`assistant-panel__tab${tab === "chat" ? " assistant-panel__tab--active" : ""}`}
+          onClick={() => setTab("chat")}
+        >
+          Ask a question
+        </button>
       </div>
 
       {tab === "feedback" && (
@@ -208,6 +198,6 @@ export function AssistantPanel({ jobId, config }: AssistantPanelProps) {
           </form>
         </div>
       )}
-    </section>
+    </div>
   );
 }

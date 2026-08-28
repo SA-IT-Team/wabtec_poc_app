@@ -52,7 +52,7 @@
 
 .app__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 2rem;
   align-items: start;
 }
@@ -60,6 +60,11 @@
 .app__sidebar {
   position: sticky;
   top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
 }
 
 .app__results-grid {

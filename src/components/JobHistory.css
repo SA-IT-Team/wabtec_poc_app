@@ -1,24 +1,7 @@
-.job-history {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  padding: 1rem;
-}
-
-.job-history__head {
+.job-history__actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.6rem;
-}
-
-.job-history__title {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
 }
 
 .job-history__empty {
