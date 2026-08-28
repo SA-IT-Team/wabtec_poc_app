@@ -8,6 +8,8 @@
  *   POST /api/drawings/{jobId}/balloons/{page}/{balloonNumber}/review -- confirm/correct/flag one balloon
  *   POST /api/drawings/{jobId}/signoff                                -- sign off once every balloon is reconciled
  *   POST /api/drawings/{jobId}/export                                  -- generate the Excel, only once signed off
+ *   POST /api/drawings/{jobId}/analyze                                 -- AI + rule-based feedback report (chatbot)
+ *   POST /api/drawings/{jobId}/chat                                    -- free-form Q&A grounded in this job's data
  *
  * Auth is a single shared secret sent as `x-api-key`, matching the backend's API_ACCESS_KEY (see
  * wabtec_poc/app.py's module docstring for why it needs one at all -- there is no user auth, see
@@ -25,7 +27,9 @@
  * wabtec_poc/deployment-vercel.md §4.
  */
 import type {
+  AnalysisReport,
   ApiErrorBody,
+  ChatTurn,
   ConnectionConfig,
   CreateUploadUrlResponse,
   ExtractedBalloon,
@@ -326,4 +330,48 @@ export async function exportDrawing(config: ConnectionConfig | null, jobId: stri
     signal,
   });
   return handleResponse<ExportResponse>(res);
+}
+
+// ---------------------------------------------------------------------------------------
+// AI chatbot: general analysis + feedback -- see wabtec_poc/src/chat_assistant.py
+// ---------------------------------------------------------------------------------------
+
+/** Runs the structured feedback pass (missing information, incomplete data, inconsistencies
+ * between sheets, common mistakes) over this job's current reconciliation state. Costs a Claude
+ * API call each time -- re-run on demand, not polled. */
+export async function analyzeDrawing(
+  config: ConnectionConfig | null,
+  jobId: string,
+  signal?: AbortSignal
+): Promise<AnalysisReport> {
+  requireConfig(config);
+
+  const res = await fetch(`${trimTrailingSlash(config.baseUrl)}/api/drawings/${encodeURIComponent(jobId)}/analyze`, {
+    method: "POST",
+    headers: authHeaders(config),
+    signal,
+  });
+  return handleResponse<AnalysisReport>(res);
+}
+
+/** Free-form Q&A grounded in this job's extracted + reconciled data. The backend is stateless --
+ * `history` (prior turns, not including `message`) must be resent on every call; this client keeps
+ * it in memory only (see ChatPanel), not localStorage. */
+export async function chatWithDrawing(
+  config: ConnectionConfig | null,
+  jobId: string,
+  message: string,
+  history: ChatTurn[],
+  signal?: AbortSignal
+): Promise<string> {
+  requireConfig(config);
+
+  const res = await fetch(`${trimTrailingSlash(config.baseUrl)}/api/drawings/${encodeURIComponent(jobId)}/chat`, {
+    method: "POST",
+    headers: { ...authHeaders(config), "Content-Type": "application/json" },
+    body: JSON.stringify({ message, history }),
+    signal,
+  });
+  const body = await handleResponse<{ reply: string }>(res);
+  return body.reply;
 }

@@ -3,6 +3,8 @@ import {
   ApiClientError,
   NotConfiguredError,
   VERCEL_DIRECT_UPLOAD_MAX_BYTES,
+  analyzeDrawing,
+  chatWithDrawing,
   createUploadUrl,
   exportDrawing,
   extractDrawing,
@@ -15,7 +17,14 @@ import {
   signOff,
   uploadFileToBlob,
 } from "./api";
-import type { ConnectionConfig, CreateUploadUrlResponse, ExtractionResult, JobRecord, ReconciliationRecord } from "./types";
+import type {
+  AnalysisReport,
+  ConnectionConfig,
+  CreateUploadUrlResponse,
+  ExtractionResult,
+  JobRecord,
+  ReconciliationRecord,
+} from "./types";
 
 const CONFIG: ConnectionConfig = { baseUrl: "https://bdx-poc.vercel.app/", apiKey: "test-secret" };
 const LOCAL_CONFIG: ConnectionConfig = { baseUrl: "http://127.0.0.1:8000", apiKey: "local-secret" };
@@ -325,6 +334,62 @@ describe("exportDrawing", () => {
 
     expect(err).toBeInstanceOf(ApiClientError);
     expect((err as ApiClientError).status).toBe(409);
+  });
+});
+
+describe("analyzeDrawing", () => {
+  it("POSTs with no body and returns the report", async () => {
+    const report: AnalysisReport = {
+      job_id: "job-1",
+      generated_at: "2026-08-28T00:00:00Z",
+      summary: "Looks clean.",
+      findings: [],
+    };
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(report));
+
+    const returned = await analyzeDrawing(CONFIG, "job-1");
+
+    expect(returned).toEqual(report);
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("https://bdx-poc.vercel.app/api/drawings/job-1/analyze");
+    expect(init?.method).toBe("POST");
+    expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("test-secret");
+  });
+
+  it("raises ApiClientError(502) when the AI call fails upstream", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      jsonResponse({ error: "ExtractionServiceError", message: "Claude structured chat call failed: timeout" }, 502)
+    );
+
+    const err = await analyzeDrawing(CONFIG, "job-1").catch((e) => e);
+
+    expect(err).toBeInstanceOf(ApiClientError);
+    expect((err as ApiClientError).status).toBe(502);
+  });
+});
+
+describe("chatWithDrawing", () => {
+  it("posts message + history and returns the reply text", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ reply: "Balloon 1 is 25.4mm." }));
+
+    const history = [{ role: "user" as const, content: "earlier question" }, { role: "assistant" as const, content: "earlier answer" }];
+    const reply = await chatWithDrawing(CONFIG, "job-1", "What's balloon 1?", history);
+
+    expect(reply).toBe("Balloon 1 is 25.4mm.");
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("https://bdx-poc.vercel.app/api/drawings/job-1/chat");
+    expect(JSON.parse(init?.body as string)).toEqual({ message: "What's balloon 1?", history });
+  });
+
+  it("raises ApiClientError(400) for an empty message", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      jsonResponse({ error: "ValidationError", message: "Request body must include a non-empty 'message'." }, 400)
+    );
+
+    const err = await chatWithDrawing(CONFIG, "job-1", "", []).catch((e) => e);
+
+    expect(err).toBeInstanceOf(ApiClientError);
+    expect((err as ApiClientError).status).toBe(400);
   });
 });
 

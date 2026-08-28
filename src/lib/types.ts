@@ -144,3 +144,44 @@ export interface HistoryEntry {
   drawingNumber: string | null;
   balloonCountMismatch: boolean | null;
 }
+
+/**
+ * AI chatbot: general analysis + feedback -- see wabtec_poc/src/chat_assistant.py and
+ * src/analysis_rules.py. `AnalysisFinding.source` distinguishes a deterministic, always-
+ * reproducible rule check from something Claude added/elaborated on during the review pass.
+ */
+
+export type AnalysisFindingCategory = "missing_info" | "incomplete_data" | "inconsistency" | "common_mistake";
+
+export type AnalysisFindingSeverity = "info" | "warning" | "critical";
+
+export type AnalysisFindingSource = "rule" | "ai";
+
+export interface BalloonRef {
+  page: number;
+  balloon_number: number;
+}
+
+export interface AnalysisFinding {
+  category: AnalysisFindingCategory;
+  severity: AnalysisFindingSeverity;
+  summary: string;
+  detail: string;
+  balloon_refs: BalloonRef[];
+  source: AnalysisFindingSource;
+}
+
+/** Response body for POST /api/drawings/{jobId}/analyze. */
+export interface AnalysisReport {
+  job_id: string;
+  generated_at: string;
+  summary: string;
+  findings: AnalysisFinding[];
+}
+
+/** One turn in a chat conversation -- kept client-side only (lib/storage.ts) and resent as
+ * `history` on every POST /api/drawings/{jobId}/chat call; the backend itself is stateless. */
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}

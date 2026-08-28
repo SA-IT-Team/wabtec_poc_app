@@ -11,6 +11,7 @@ import {
   saveIdentity,
 } from "./lib/storage";
 import type { ConnectionConfig, ExtractionResult, HistoryEntry, JobRecord } from "./lib/types";
+import { AssistantPanel } from "./components/AssistantPanel";
 import { BalloonTable } from "./components/BalloonTable";
 import { ConnectionBar } from "./components/ConnectionBar";
 import { DrawingPreview } from "./components/DrawingPreview";
@@ -181,6 +182,8 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+              {activeJobId && <AssistantPanel jobId={activeJobId} config={config} />}
             </section>
           )}
         </main>
