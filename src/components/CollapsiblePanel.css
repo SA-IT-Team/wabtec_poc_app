@@ -59,3 +59,8 @@
 .collapsible-panel__body {
   padding: 0 1rem 1rem;
 }
+
+.collapsible-panel__body--scrollable {
+  max-height: 28rem;
+  overflow-y: auto;
+}

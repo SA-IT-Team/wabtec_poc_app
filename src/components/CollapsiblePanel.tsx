@@ -8,6 +8,9 @@ interface CollapsiblePanelProps {
    * (e.g. "recent-jobs", "ai-assistant"). */
   storageKey: string;
   defaultOpen?: boolean;
+  /** Caps the body's height and lets it scroll internally instead of growing indefinitely -- for
+   * panels whose content can get arbitrarily long (e.g. AI Assistant's findings list/chat). */
+  scrollable?: boolean;
   children: ReactNode;
 }
 
@@ -33,7 +36,14 @@ function saveOpen(key: string, open: boolean): void {
 /** A collapsible card: click the header to toggle, remembered per-panel across reloads. Used to
  * let the sidebar hold both Recent Jobs and the AI Assistant without either one crowding the
  * other out -- see App.tsx. */
-export function CollapsiblePanel({ title, subtitle, storageKey, defaultOpen = true, children }: CollapsiblePanelProps) {
+export function CollapsiblePanel({
+  title,
+  subtitle,
+  storageKey,
+  defaultOpen = true,
+  scrollable = false,
+  children,
+}: CollapsiblePanelProps) {
   const [open, setOpen] = useState(() => loadOpen(storageKey, defaultOpen));
 
   function toggle() {
@@ -55,7 +65,11 @@ export function CollapsiblePanel({ title, subtitle, storageKey, defaultOpen = tr
           {subtitle && <span className="collapsible-panel__subtitle">{subtitle}</span>}
         </span>
       </button>
-      {open && <div className="collapsible-panel__body">{children}</div>}
+      {open && (
+        <div className={`collapsible-panel__body${scrollable ? " collapsible-panel__body--scrollable" : ""}`}>
+          {children}
+        </div>
+      )}
     </section>
   );
 }

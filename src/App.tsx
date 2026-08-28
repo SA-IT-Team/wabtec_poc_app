@@ -197,6 +197,7 @@ export default function App() {
               title="AI assistant"
               subtitle="Analysis and feedback on this drawing's data"
               storageKey="ai-assistant"
+              scrollable
             >
               <AssistantPanel jobId={activeJobId} config={config} />
             </CollapsiblePanel>

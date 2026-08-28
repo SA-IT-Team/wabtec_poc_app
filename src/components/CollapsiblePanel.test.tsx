@@ -69,6 +69,26 @@ describe("CollapsiblePanel", () => {
     expect(screen.queryByText("panel content")).not.toBeInTheDocument();
   });
 
+  it("adds the scrollable modifier class to the body when scrollable is set", () => {
+    render(
+      <CollapsiblePanel title="AI assistant" storageKey="test-panel-4" scrollable>
+        <p>panel content</p>
+      </CollapsiblePanel>
+    );
+
+    expect(screen.getByText("panel content").parentElement).toHaveClass("collapsible-panel__body--scrollable");
+  });
+
+  it("omits the scrollable modifier class by default", () => {
+    render(
+      <CollapsiblePanel title="Recent jobs" storageKey="test-panel-5">
+        <p>panel content</p>
+      </CollapsiblePanel>
+    );
+
+    expect(screen.getByText("panel content").parentElement).not.toHaveClass("collapsible-panel__body--scrollable");
+  });
+
   it("renders an optional subtitle", () => {
     render(
       <CollapsiblePanel title="AI assistant" subtitle="Analysis and feedback" storageKey="test-panel-3">
