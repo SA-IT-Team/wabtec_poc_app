@@ -110,14 +110,14 @@ export default function App() {
     <div className="app">
       <header className="app__header">
         <div className="app__brand app__brand--left">
-          <BrandLogo src="/logos/sa-technologies.svg" alt="SA Technologies" />
+          <BrandLogo src="/logos/sa-technologies.jpg" alt="SA Technologies" onWhiteChip />
         </div>
         <div className="app__title-block">
           <span className="app__eyebrow">Proof of Concept</span>
           <h1>Ballooned Drawing Extraction</h1>
         </div>
         <div className="app__brand app__brand--right">
-          <BrandLogo src="/logos/wabtec.svg" alt="Wabtec" />
+          <BrandLogo src="/logos/wabtec.png" alt="Wabtec" />
         </div>
       </header>
 

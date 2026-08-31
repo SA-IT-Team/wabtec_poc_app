@@ -17,17 +17,33 @@
 .app__brand {
   display: flex;
   align-items: center;
-  min-height: 2.25rem;
+  min-height: 4.5rem;
 }
 
 .app__brand--right {
   justify-content: flex-end;
 }
 
+/* Both logos render at a set height regardless of their own image dimensions, so they carry
+   comparable visual weight in the header -- Wabtec's is bumped up a bit further below since its
+   wordmark reads smaller than SA Technologies' at the same literal height. */
 .app__logo {
-  max-height: 2.25rem;
+  height: 3.5rem;
   width: auto;
   object-fit: contain;
+}
+
+.app__brand--right .app__logo {
+  height: 6.0rem;
+}
+
+.app__logo-chip {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.3rem 0.5rem;
 }
 
 .app__logo--fallback {
@@ -35,7 +51,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  font-size: 0.92rem;
+  font-size: 1.15rem;
   color: var(--ink-soft);
 }
 

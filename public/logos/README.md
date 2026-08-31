@@ -1,15 +1,14 @@
 # Logo assets
 
-Drop the real logo files here with these exact names and they'll appear in the app header
-(top-left / top-right); nothing else needs to change:
+- `sa-technologies.jpg` — SA Technologies, top left of the app header. Flat white background (no
+  transparency), so `App.tsx` renders it via `<BrandLogo onWhiteChip>`, which wraps it in a small
+  white card rather than letting the white background clash with the page (especially in dark
+  mode) — see `src/components/BrandLogo.tsx`.
+- `wabtec.png` — Wabtec, top right. Real transparency, rendered plain (no chip).
 
-- `sa-technologies.svg` (or `.png`) — SA Technologies, top left
-- `wabtec.svg` (or `.png`) — Wabtec, top right
+If you swap either file for a different one, keep the filename the same (or update the `src` path
+in `App.tsx` to match) and keep `onWhiteChip` in sync with whether the new file has a transparent
+background.
 
-If you use `.png` instead of `.svg`, update the two `src` paths in `src/App.tsx` to match.
-
-Until real files are added here, the header shows a plain text wordmark instead (see
-`src/components/BrandLogo.tsx`) — the layout doesn't break, it just isn't branded yet.
-
-Keep logo files reasonably small (a few hundred KB at most) and roughly landscape/square — the
-header caps logo height at ~2.25rem and lets width scale naturally.
+Until a file here loads successfully, the header falls back to a plain text wordmark instead (see
+`BrandLogo.tsx`) — the layout doesn't break either way.
