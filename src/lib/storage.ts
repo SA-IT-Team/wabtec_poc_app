@@ -1,11 +1,11 @@
 /**
  * All persistence in this app is browser localStorage -- this app has no server of its own, only
  * the wabtec_poc backend it talks to. Nothing here ever leaves the browser except via api.ts's
- * calls to that backend.
+ * calls to that backend. (Backend connection config itself is no longer stored here -- it's
+ * supplied at build/deploy time via env vars, see lib/env.ts.)
  */
-import type { ConnectionConfig, HistoryEntry } from "./types";
+import type { HistoryEntry } from "./types";
 
-const CONNECTION_KEY = "bdx-poc.connection";
 const HISTORY_KEY = "bdx-poc.history";
 const IDENTITY_KEY = "bdx-poc.identity";
 const MAX_HISTORY_ENTRIES = 25;
@@ -25,39 +25,7 @@ export function saveIdentity(name: string): void {
   try {
     localStorage.setItem(IDENTITY_KEY, name);
   } catch {
-    /* see saveConnectionConfig */
-  }
-}
-
-export function loadConnectionConfig(): ConnectionConfig | null {
-  try {
-    const raw = localStorage.getItem(CONNECTION_KEY);
-    if (!raw) return null;
-    // `functionKey` is the pre-rename field name, from when this app also supported an Azure
-    // Functions backend -- still read so an already-saved connection survives the upgrade.
-    const parsed = JSON.parse(raw) as Partial<ConnectionConfig> & { functionKey?: string };
-    const apiKey = parsed.apiKey ?? parsed.functionKey;
-    if (!parsed.baseUrl || !apiKey) return null;
-    return { baseUrl: parsed.baseUrl, apiKey };
-  } catch {
-    return null;
-  }
-}
-
-export function saveConnectionConfig(config: ConnectionConfig): void {
-  try {
-    localStorage.setItem(CONNECTION_KEY, JSON.stringify(config));
-  } catch {
-    // localStorage can throw in private-browsing / storage-full situations; the app still
-    // functions for the current session, it just won't remember the connection next time.
-  }
-}
-
-export function clearConnectionConfig(): void {
-  try {
-    localStorage.removeItem(CONNECTION_KEY);
-  } catch {
-    /* see saveConnectionConfig */
+    /* localStorage unavailable (private browsing, storage full) -- not persisting is fine this session */
   }
 }
 
@@ -78,7 +46,7 @@ export function addHistoryEntry(entry: HistoryEntry): HistoryEntry[] {
   try {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
   } catch {
-    /* see saveConnectionConfig */
+    /* localStorage unavailable (private browsing, storage full) -- not persisting is fine this session */
   }
   return next;
 }
@@ -87,6 +55,6 @@ export function clearHistory(): void {
   try {
     localStorage.removeItem(HISTORY_KEY);
   } catch {
-    /* see saveConnectionConfig */
+    /* localStorage unavailable (private browsing, storage full) -- not persisting is fine this session */
   }
 }

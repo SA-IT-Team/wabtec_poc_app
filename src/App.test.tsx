@@ -13,6 +13,7 @@ function reconciliationFor(jobId: string, drawingNumber: string | null, submitte
   return {
     job_id: jobId,
     drawing_number: drawingNumber,
+    template_id: null,
     revision: null,
     submitted_by: submittedBy,
     balloons: [
@@ -53,35 +54,32 @@ function reconciliationFor(jobId: string, drawingNumber: string | null, submitte
 beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("fetch", vi.fn());
+  // Backend connection is env-configured (lib/env.ts), not entered in the UI -- stub a working
+  // config by default so most tests exercise an already-connected app; the two tests below cover
+  // the unconfigured state explicitly by unstubbing it again.
+  vi.stubEnv("VITE_API_BASE_URL", "https://bdx-poc.vercel.app");
+  vi.stubEnv("VITE_API_ACCESS_KEY", "test-secret");
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
-async function connect(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText(/backend url/i), "https://bdx-poc.vercel.app");
-  await user.type(screen.getByLabelText(/api access key/i), "test-secret");
-  await user.click(screen.getByRole("button", { name: /save/i }));
-}
-
 describe("App", () => {
-  it("prompts for connection details before allowing an upload", () => {
+  it("shows a hint and disables Extract when the backend isn't configured", () => {
+    // Explicitly blank, not just unstubbed -- unstubbing alone would fall back to whatever a
+    // real .env.local sets for local dev, not "unconfigured".
+    vi.stubEnv("VITE_API_BASE_URL", "");
+    vi.stubEnv("VITE_API_ACCESS_KEY", "");
     render(<App />);
-    expect(screen.getByLabelText(/backend url/i)).toBeInTheDocument();
+    expect(screen.getByText(/backend isn't configured/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /extract/i })).toBeDisabled();
   });
 
-  it("persists the connection and re-shows it collapsed on next render", async () => {
-    const user = userEvent.setup();
-    const { unmount } = render(<App />);
-    await connect(user);
-    expect(screen.getByText(/bdx-poc\.vercel\.app/)).toBeInTheDocument();
-    unmount();
-
+  it("allows extraction once VITE_API_BASE_URL / VITE_API_ACCESS_KEY are set", () => {
     render(<App />);
-    expect(screen.getByText("● connected")).toBeInTheDocument();
-    expect(screen.queryByLabelText(/backend url/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/backend isn't configured/i)).not.toBeInTheDocument();
   });
 
   it("uploads a file and renders the draft result with pending reconciliation, including a mismatch banner", async () => {
@@ -130,7 +128,6 @@ describe("App", () => {
       .mockResolvedValueOnce(jsonResponse(reconciliationFor("job-abc12345", "DWG-10245"))); // ReconciliationPanel's own fetch
 
     render(<App />);
-    await connect(user);
 
     const file = new File(["%PDF-1.4"], "dwg.pdf", { type: "application/pdf" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -155,7 +152,6 @@ describe("App", () => {
     );
 
     render(<App />);
-    await connect(user);
 
     const file = new File(["x"], "scan.png", { type: "image/png" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -195,8 +191,6 @@ describe("App", () => {
       .mockResolvedValueOnce(jsonResponse(reconciliationFor("job-1", "DWG-1")));
 
     render(<App />);
-    await connect(user);
-    expect(screen.getByText(/bdx-poc\.vercel\.app/)).toBeInTheDocument();
 
     const file = new File(["%PDF-1.4"], "dwg.pdf", { type: "application/pdf" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -245,7 +239,6 @@ describe("App", () => {
       .mockResolvedValueOnce(jsonResponse(reconciliationFor("job-big", "DWG-BIG"))); // ReconciliationPanel's fetch
 
     render(<App />);
-    await connect(user);
 
     const bigFile = new File([new Uint8Array(VERCEL_DIRECT_UPLOAD_MAX_BYTES + 1)], "big.pdf", { type: "application/pdf" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -300,7 +293,6 @@ describe("App", () => {
       .mockResolvedValueOnce(jsonResponse({ jobId: "job-1", exportUrl: "https://example/export.xlsx" })); // POST export
 
     render(<App />);
-    await connect(user);
 
     const file = new File(["%PDF-1.4"], "dwg.pdf", { type: "application/pdf" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -316,6 +308,8 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /sign off/i }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: /export excel/i })).toBeInTheDocument());
+    // override the template picked at upload for this export specifically
+    await user.selectOptions(screen.getByRole("combobox", { name: /^template$/i }), "generic-flat");
     await user.click(screen.getByRole("button", { name: /export excel/i }));
 
     await waitFor(() => expect(screen.getByRole("link", { name: /download excel export/i })).toBeInTheDocument());
@@ -327,5 +321,9 @@ describe("App", () => {
     const reviewCall = vi.mocked(fetch).mock.calls[2];
     expect(reviewCall[0]).toBe("https://bdx-poc.vercel.app/api/drawings/job-1/balloons/1/12/review");
     expect(JSON.parse((reviewCall[1]?.body as string) ?? "{}")).toMatchObject({ reviewerId: "bob", action: "confirm" });
+
+    const exportCall = vi.mocked(fetch).mock.calls[6];
+    expect(exportCall[0]).toBe("https://bdx-poc.vercel.app/api/drawings/job-1/export");
+    expect(JSON.parse((exportCall[1]?.body as string) ?? "{}")).toEqual({ templateId: "generic-flat" });
   });
 });

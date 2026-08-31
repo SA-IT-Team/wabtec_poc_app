@@ -1,22 +1,46 @@
 .app {
-  max-width: 1360px;
+  max-width: 1680px;
   margin: 0 auto;
-  padding: 2rem clamp(1rem, 4vw, 2.5rem) 4rem;
+  padding: 2rem clamp(1rem, 4vw, 3rem) 4rem;
 }
 
 .app__header {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   gap: 1.5rem;
   padding-bottom: 1.75rem;
   border-bottom: 2px solid var(--ink);
   margin-bottom: 2rem;
 }
 
+.app__brand {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+}
+
+.app__brand--right {
+  justify-content: flex-end;
+}
+
+.app__logo {
+  max-height: 2.25rem;
+  width: auto;
+  object-fit: contain;
+}
+
+.app__logo--fallback {
+  font-family: "Big Shoulders Display", "Arial Narrow", sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+}
+
 .app__title-block {
-  max-width: 46ch;
+  text-align: center;
 }
 
 .app__eyebrow {
@@ -26,28 +50,12 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent-ink);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .app__title-block h1 {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: clamp(1.6rem, 3.4vw, 2.2rem);
-}
-
-.app__balloon {
-  font-size: 1.4em;
-}
-
-.app__subtitle {
-  margin: 0.75rem 0 0;
-  color: var(--ink-soft);
-  font-size: 0.94rem;
-  text-transform: none;
-  letter-spacing: normal;
-  font-family: "Public Sans", sans-serif;
-  font-weight: 400;
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  white-space: nowrap;
 }
 
 .app__layout {
@@ -147,5 +155,29 @@
 @media (max-width: 760px) {
   .app__results-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .app__header {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "left right" "title title";
+    row-gap: 0.75rem;
+  }
+
+  .app__brand--left {
+    grid-area: left;
+  }
+
+  .app__brand--right {
+    grid-area: right;
+  }
+
+  .app__title-block {
+    grid-area: title;
+  }
+
+  .app__title-block h1 {
+    white-space: normal;
   }
 }

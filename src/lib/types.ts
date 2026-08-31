@@ -115,6 +115,9 @@ export interface ReconciliationRecord {
   drawing_number: string | null;
   revision: string | null;
   submitted_by: string | null;
+  /** Export template chosen at upload -- see wabtec_poc/src/excel_templates.py. Null means "use
+   * the registry's default"; the export call may still override it per call (see api.ts). */
+  template_id: string | null;
   balloons: BalloonReviewRecord[];
   signed_off: boolean;
   signed_off_by: string | null;

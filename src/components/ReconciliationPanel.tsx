@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiClientError, exportDrawing, getReconciliation, reviewBalloon, signOff } from "../lib/api";
+import { DEFAULT_TEMPLATE_ID, EXPORT_TEMPLATES } from "../lib/templates";
 import type { BalloonReviewRecord, ConnectionConfig, ExtractedBalloon, ReconciliationRecord } from "../lib/types";
 import { StatusPill } from "./StatusPill";
 import "./ReconciliationPanel.css";
@@ -33,6 +34,9 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange 
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [openForm, setOpenForm] = useState<OpenForm>(null);
   const [exportUrl, setExportUrl] = useState<string | null>(null);
+  // null until the reviewer explicitly picks a different one -- exportDrawing then falls back to
+  // whatever template was chosen at upload (see api.ts / wabtec_poc/src/excel_templates.py).
+  const [templateChoice, setTemplateChoice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -87,7 +91,7 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange 
     setBusyKey("__export__");
     setActionError(null);
     try {
-      const result = await exportDrawing(config, jobId);
+      const result = await exportDrawing(config, jobId, { templateId: templateChoice ?? undefined });
       setExportUrl(result.exportUrl);
     } catch (err) {
       setActionError(describeError(err));
@@ -116,6 +120,7 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange 
   const reconciled = record.balloons.filter((b) => b.status === "reconciled").length;
   const readyForSignoff = total > 0 && reconciled === total;
   const identityIsSubmitter = Boolean(record.submitted_by) && identity.trim() === record.submitted_by?.trim();
+  const effectiveTemplateId = templateChoice ?? record.template_id ?? DEFAULT_TEMPLATE_ID;
 
   return (
     <section className="reconciliation-panel">
@@ -214,9 +219,25 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange 
           </button>
         )}
         {record.signed_off && !exportUrl && (
-          <button type="button" className="btn btn--primary" disabled={busyKey === "__export__"} onClick={handleExport}>
-            {busyKey === "__export__" ? "Generating export…" : "Export Excel"}
-          </button>
+          <div className="reconciliation-panel__export">
+            <label className="reconciliation-panel__template">
+              <span>Template</span>
+              <select
+                value={effectiveTemplateId}
+                onChange={(e) => setTemplateChoice(e.target.value)}
+                disabled={busyKey === "__export__"}
+              >
+                {EXPORT_TEMPLATES.map((t) => (
+                  <option key={t.templateId} value={t.templateId}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="btn btn--primary" disabled={busyKey === "__export__"} onClick={handleExport}>
+              {busyKey === "__export__" ? "Generating export…" : "Export Excel"}
+            </button>
+          </div>
         )}
         {exportUrl && (
           <a className="btn btn--primary" href={exportUrl} target="_blank" rel="noreferrer">

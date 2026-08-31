@@ -234,6 +234,7 @@ describe("getReconciliation", () => {
       drawing_number: "DWG-1",
       revision: "A",
       submitted_by: "alice",
+      template_id: null,
       balloons: [],
       signed_off: false,
       signed_off_by: null,
@@ -281,6 +282,7 @@ describe("signOff", () => {
       drawing_number: "DWG-1",
       revision: "A",
       submitted_by: "alice",
+      template_id: null,
       balloons: [],
       signed_off: true,
       signed_off_by: "bob",
@@ -314,7 +316,7 @@ describe("signOff", () => {
 });
 
 describe("exportDrawing", () => {
-  it("POSTs with no body and returns the export URL", async () => {
+  it("POSTs with no templateId when none is given and returns the export URL", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ jobId: "job-1", exportUrl: "https://example/export.xlsx" }));
 
     const returned = await exportDrawing(CONFIG, "job-1");
@@ -323,6 +325,16 @@ describe("exportDrawing", () => {
     const [url, init] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("https://bdx-poc.vercel.app/api/drawings/job-1/export");
     expect(init?.method).toBe("POST");
+    expect(JSON.parse(init?.body as string)).toEqual({});
+  });
+
+  it("sends a templateId override when given", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ jobId: "job-1", exportUrl: "https://example/export.xlsx" }));
+
+    await exportDrawing(CONFIG, "job-1", { templateId: "generic-flat" });
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    expect(JSON.parse(init?.body as string)).toEqual({ templateId: "generic-flat" });
   });
 
   it("raises ApiClientError(409) when export is attempted before signoff", async () => {
@@ -334,6 +346,17 @@ describe("exportDrawing", () => {
 
     expect(err).toBeInstanceOf(ApiClientError);
     expect((err as ApiClientError).status).toBe(409);
+  });
+
+  it("raises ApiClientError(400) for an unknown template override", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      jsonResponse({ error: "UnknownTemplate", message: "Unknown export template 'bogus'. Valid values: as9102-form3, generic-flat." }, 400)
+    );
+
+    const err = await exportDrawing(CONFIG, "job-1", { templateId: "bogus" }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(ApiClientError);
+    expect((err as ApiClientError).status).toBe(400);
   });
 });
 

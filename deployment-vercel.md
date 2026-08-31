@@ -3,7 +3,8 @@
 Scope: deploying this React front end to **Vercel**, wired up to the Vercel-hosted `wabtec_poc`
 backend (see [`../wabtec_poc/deployment-vercel.md`](../wabtec_poc/deployment-vercel.md), which must
 be done first — you need its URL and `API_ACCESS_KEY`). Like the backend, treat this as disposable
-POC infrastructure: no auth beyond the key the user pastes into the connection form.
+POC infrastructure: no auth beyond a shared secret, now set as a build-time env var rather than
+entered in the UI (see §1).
 
 Much simpler than the backend: this is a static Vite/React SPA, one of Vercel's best-supported
 zero-config cases — no Python runtime concerns, no request-body caps, no entrypoint conventions to
@@ -19,10 +20,18 @@ get right.
 | A Vercel account + the Vercel CLI | `npm install -g vercel`, then `vercel login`. Only needed for the CLI path (§3.1) — the Git-connected path (§3.2) doesn't require it locally. |
 | Node.js 20+, npm | Same as local dev — `npm install && npm run build` must succeed first. |
 
-No build-time environment variables are required — the backend URL and key are entered by the user
-at runtime through the connection form and stored in that browser's `localStorage`, not baked into
-the build. That also means the exact same build works against any backend without a redeploy,
-including a locally-running one.
+Two build-time environment variables are required — set them as Vercel project env vars (Project →
+Settings → Environment Variables) before the first deploy:
+
+| Variable | Value |
+|---|---|
+| `VITE_API_BASE_URL` | The backend's deployed URL from the prerequisite above. |
+| `VITE_API_ACCESS_KEY` | That backend's `API_ACCESS_KEY`, exactly. |
+
+Vite inlines `VITE_`-prefixed vars into the built client bundle, so unlike a typical server-side
+secret, changing either requires a rebuild (not just an env var update) to take effect — and this
+build is now pinned to one backend, not portable across backends without a redeploy the way the old
+runtime connection form was. See `src/lib/env.ts` for the reasoning behind that tradeoff.
 
 ---
 
@@ -44,9 +53,14 @@ routing gets added later. The headers set `X-Content-Type-Options`, `X-Frame-Opt
 
 ## 3. Deploy — two paths
 
+Either path needs `VITE_API_BASE_URL` / `VITE_API_ACCESS_KEY` set first (§1) — the build reads them
+at build time, so setting them after the fact means redeploying.
+
 ### 3.1 One-off deploy with the Vercel CLI (fastest)
 
 ```bash
+vercel env add VITE_API_BASE_URL production
+vercel env add VITE_API_ACCESS_KEY production
 npm run build
 vercel --prod
 ```
@@ -57,25 +71,23 @@ First run prompts you to link the directory to a Vercel project (or create one).
 ### 3.2 Git-connected deploys (recommended for anything beyond one-off testing)
 
 1. Push this repo to GitHub (or GitLab/Bitbucket).
-2. In the Vercel dashboard: **Add New → Project**, import the repo. Vercel auto-detects the Vite
-   framework preset — no configuration needed.
+2. In the Vercel dashboard: **Add New → Project**, import the repo, and set `VITE_API_BASE_URL` /
+   `VITE_API_ACCESS_KEY` under Environment Variables before the first deploy. Vercel auto-detects
+   the Vite framework preset — no other configuration needed.
 3. Every push to the production branch deploys to your production URL; every PR gets its own
-   preview URL automatically.
+   preview URL automatically (give preview deployments their own env var values if they should
+   point at a different backend, e.g. a staging one).
 
 Note this is a *separate* Vercel project from the backend — two repos, two projects, two URLs.
 
 ---
 
-## 4. Connecting to your backend
+## 4. Locking down CORS
 
-Open the deployed app and, in the connection form at the top, paste the backend's URL
-(`https://<your-backend>.vercel.app`) and the value of its `API_ACCESS_KEY`. Both are stored in that
-browser's `localStorage` only.
-
-Then go back and restrict the backend's `CORS_ALLOWED_ORIGIN` (see
-`../wabtec_poc/deployment-vercel.md` §3) to this app's actual deployed origin — don't leave it on the
-`*` default once you're sharing the link with anyone else. Changing it requires a backend redeploy
-to take effect.
+Once §3's env vars point this app at your backend, go back and restrict the backend's
+`CORS_ALLOWED_ORIGIN` (see `../wabtec_poc/deployment-vercel.md` §3) to this app's actual deployed
+origin — don't leave it on the `*` default once you're sharing the link with anyone else. Changing
+it requires a backend redeploy to take effect.
 
 ---
 
@@ -94,9 +106,10 @@ storage…" status while it runs.
 open "https://<your-project>.vercel.app"
 ```
 
-Connect to your backend (§4), upload a small test drawing, confirm it completes. Then try one over
-4MB to exercise the large-file path — watch the Network tab for the three requests (`upload-url`, a
-PUT straight to `*.blob.core.windows.net`, then `process`).
+If `VITE_API_BASE_URL`/`VITE_API_ACCESS_KEY` were set correctly at build time, the app loads
+straight into the upload bar with no "Backend isn't configured" hint. Upload a small test drawing,
+confirm it completes. Then try one over 4MB to exercise the large-file path — watch the Network tab
+for the three requests (`upload-url`, a PUT straight to `*.blob.core.windows.net`, then `process`).
 
 ---
 
@@ -119,7 +132,8 @@ vercel remove <project-name>
 
 | Symptom | Likely cause |
 |---|---|
-| Every request 401s even though the backend is reachable | The key in the connection form doesn't match the backend's `API_ACCESS_KEY` — check for trailing whitespace if you pasted it, and confirm you set the variable in the same env scope (production vs. preview) as the deployment you're hitting. |
+| App shows "Backend isn't configured" | `VITE_API_BASE_URL` / `VITE_API_ACCESS_KEY` weren't set (or were set after the build ran) for this deployment's env scope — set them and redeploy, they don't take effect on a running deployment. |
+| Every request 401s even though the backend is reachable | `VITE_API_ACCESS_KEY` doesn't match the backend's `API_ACCESS_KEY` — check for trailing whitespace, and confirm you set the variable in the same env scope (production vs. preview) as the deployment you're hitting, then redeploy. |
 | Every request 500s with `ConfigurationError` | A backend env var is missing — that's a backend problem, see `../wabtec_poc/deployment-vercel.md` §9. |
 | Upload fails with a browser-level network error and no JSON response | CORS — the backend's `CORS_ALLOWED_ORIGIN` doesn't include this app's origin. Remember preview deployments get a different hostname than production. |
 | Mixed-content error connecting to a local backend from a deployed frontend | A page served over HTTPS can't call `http://127.0.0.1`. Test locally against a local backend (`npm run dev`), or deploy the backend. |

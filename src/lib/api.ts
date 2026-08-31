@@ -11,6 +11,10 @@
  *   POST /api/drawings/{jobId}/analyze                                 -- AI + rule-based feedback report (chatbot)
  *   POST /api/drawings/{jobId}/chat                                    -- free-form Q&A grounded in this job's data
  *
+ * (The backend also exposes GET /api/templates to list export templates -- this client uses a
+ * static mirror of that registry instead, see lib/templates.ts, to avoid an extra network
+ * round-trip on every page load; update both if the backend's template registry changes.)
+ *
  * Auth is a single shared secret sent as `x-api-key`, matching the backend's API_ACCESS_KEY (see
  * wabtec_poc/app.py's module docstring for why it needs one at all -- there is no user auth, see
  * wabtec_poc/doc/architecture-poc.md §3.3). The key is supplied by whoever is running this app
@@ -321,13 +325,25 @@ export interface ExportResponse {
   exportUrl: string;
 }
 
-export async function exportDrawing(config: ConnectionConfig | null, jobId: string, signal?: AbortSignal): Promise<ExportResponse> {
+export interface ExportOptions {
+  /** Overrides the template chosen at upload time (wabtec_poc/src/excel_templates.py) for just
+   * this export call. Omit to use whatever's stored on the reconciliation record. */
+  templateId?: string;
+  signal?: AbortSignal;
+}
+
+export async function exportDrawing(
+  config: ConnectionConfig | null,
+  jobId: string,
+  options: ExportOptions = {}
+): Promise<ExportResponse> {
   requireConfig(config);
 
   const res = await fetch(`${trimTrailingSlash(config.baseUrl)}/api/drawings/${encodeURIComponent(jobId)}/export`, {
     method: "POST",
-    headers: authHeaders(config),
-    signal,
+    headers: { ...authHeaders(config), "Content-Type": "application/json" },
+    body: JSON.stringify({ templateId: options.templateId }),
+    signal: options.signal,
   });
   return handleResponse<ExportResponse>(res);
 }

@@ -237,3 +237,33 @@
   font-size: 0.82rem;
   color: var(--ink-faint);
 }
+
+.reconciliation-panel__export {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.reconciliation-panel__template {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.reconciliation-panel__template select {
+  max-width: 16rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: normal;
+}

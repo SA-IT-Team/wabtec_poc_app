@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { DEFAULT_TEMPLATE_ID, EXPORT_TEMPLATES } from "../lib/templates";
 import "./UploadPanel.css";
 
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/tiff"];
@@ -9,9 +10,12 @@ interface UploadPanelProps {
   onSubmit: (file: File, templateId: string) => void;
 }
 
+/** A slim, button-driven upload bar -- click "Choose drawing" (or drop a file anywhere on the
+ * bar) to pick a file, choose an export template, then Extract. Replaces the earlier large
+ * dropzone panel with something that doesn't dominate the page above the fold. */
 export function UploadPanel({ disabled, submitting, onSubmit }: UploadPanelProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [templateId, setTemplateId] = useState("as9102-form3");
+  const [templateId, setTemplateId] = useState(DEFAULT_TEMPLATE_ID);
   const [dragActive, setDragActive] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -27,7 +31,7 @@ export function UploadPanel({ disabled, submitting, onSubmit }: UploadPanelProps
     setFile(candidate);
   }, []);
 
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+  function handleDrop(e: React.DragEvent<HTMLFormElement>) {
     e.preventDefault();
     setDragActive(false);
     pickFile(e.dataTransfer.files[0]);
@@ -39,65 +43,65 @@ export function UploadPanel({ disabled, submitting, onSubmit }: UploadPanelProps
     onSubmit(file, templateId);
   }
 
+  function clearFile() {
+    setFile(null);
+    setPickError(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
   return (
-    <form className="upload-panel" onSubmit={handleSubmit}>
-      <div
-        className={`upload-panel__dropzone${dragActive ? " upload-panel__dropzone--active" : ""}${
-          file ? " upload-panel__dropzone--filled" : ""
-        }`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragActive(true);
-        }}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
-        }}
-        aria-label="Choose a ballooned drawing file"
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED_TYPES.join(",")}
-          onChange={(e) => pickFile(e.target.files?.[0])}
-          hidden
-        />
-        {file ? (
-          <>
-            <span className="upload-panel__icon">🎈</span>
-            <span className="upload-panel__filename">{file.name}</span>
-            <span className="upload-panel__filesize">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
-          </>
-        ) : (
-          <>
-            <span className="upload-panel__icon">📐</span>
-            <span>Drop a ballooned drawing here, or click to choose a file</span>
-            <span className="upload-panel__hint">PDF, PNG, JPEG, or TIFF — 25 MB max</span>
-          </>
-        )}
-      </div>
+    <form
+      className={`upload-bar${dragActive ? " upload-bar--active" : ""}`}
+      onSubmit={handleSubmit}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragActive(true);
+      }}
+      onDragLeave={() => setDragActive(false)}
+      onDrop={handleDrop}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPTED_TYPES.join(",")}
+        onChange={(e) => pickFile(e.target.files?.[0])}
+        hidden
+      />
 
-      {pickError && <p className="upload-panel__error">{pickError}</p>}
+      <button type="button" className="btn upload-bar__choose" onClick={() => inputRef.current?.click()}>
+        📎 Choose drawing
+      </button>
 
-      <div className="upload-panel__row">
-        <label htmlFor="templateId" className="upload-panel__template-label">
-          Export template
-        </label>
-        <input
-          id="templateId"
-          type="text"
-          value={templateId}
-          onChange={(e) => setTemplateId(e.target.value)}
-          className="upload-panel__template-input"
-        />
-        <button type="submit" className="btn btn--primary" disabled={disabled || !file || submitting}>
-          {submitting ? "Extracting…" : "Extract"}
-        </button>
-      </div>
+      {file ? (
+        <span className="upload-bar__file">
+          <span className="upload-bar__filename" title={file.name}>
+            {file.name}
+          </span>
+          <span className="upload-bar__filesize">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+          <button type="button" className="upload-bar__remove" aria-label="Remove selected file" onClick={clearFile}>
+            ×
+          </button>
+        </span>
+      ) : (
+        <span className="upload-bar__hint">or drop a PDF, PNG, JPEG, or TIFF here — 25 MB max</span>
+      )}
+
+      <label className="upload-bar__template">
+        <span>Export template</span>
+        <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+          {EXPORT_TEMPLATES.map((t) => (
+            <option key={t.templateId} value={t.templateId}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <button type="submit" className="btn btn--primary" disabled={disabled || !file || submitting}>
+        {submitting ? "Extracting…" : "Extract"}
+      </button>
+
+      {pickError && <p className="upload-bar__error">{pickError}</p>}
     </form>
   );
 }

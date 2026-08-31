@@ -1,20 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError, extractDrawingSmart, getDrawingResult, type UploadStage } from "./lib/api";
-import {
-  addHistoryEntry,
-  clearConnectionConfig,
-  clearHistory,
-  loadConnectionConfig,
-  loadHistory,
-  loadIdentity,
-  saveConnectionConfig,
-  saveIdentity,
-} from "./lib/storage";
-import type { ConnectionConfig, ExtractionResult, HistoryEntry, JobRecord } from "./lib/types";
+import { getEnvConnectionConfig } from "./lib/env";
+import { addHistoryEntry, clearHistory, loadHistory, loadIdentity, saveIdentity } from "./lib/storage";
+import type { ExtractionResult, HistoryEntry, JobRecord } from "./lib/types";
 import { AssistantPanel } from "./components/AssistantPanel";
 import { BalloonTable } from "./components/BalloonTable";
+import { BrandLogo } from "./components/BrandLogo";
 import { CollapsiblePanel } from "./components/CollapsiblePanel";
-import { ConnectionBar } from "./components/ConnectionBar";
 import { DrawingPreview } from "./components/DrawingPreview";
 import { JobHistory } from "./components/JobHistory";
 import { ReconciliationPanel } from "./components/ReconciliationPanel";
@@ -35,7 +27,9 @@ type ViewState =
 type PreviewState = { jobId: string; url: string; name: string; type: string };
 
 export default function App() {
-  const [config, setConfig] = useState<ConnectionConfig | null>(() => loadConnectionConfig());
+  // Set once at build/deploy time via VITE_API_BASE_URL / VITE_API_ACCESS_KEY -- see lib/env.ts.
+  // Not editable in the UI and not stored in component state: it can't change without a rebuild.
+  const [config] = useState(() => getEnvConnectionConfig());
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
   const [identity, setIdentity] = useState<string>(() => loadIdentity());
   const [view, setView] = useState<ViewState>({ kind: "idle" });
@@ -57,16 +51,6 @@ export default function App() {
       ? `Ballooned Drawing Extraction — ${new URL(config.baseUrl, window.location.href).host}`
       : "Ballooned Drawing Extraction — POC";
   }, [config]);
-
-  const handleSaveConfig = useCallback((next: ConnectionConfig) => {
-    setConfig(next);
-    saveConnectionConfig(next);
-  }, []);
-
-  const handleClearConfig = useCallback(() => {
-    setConfig(null);
-    clearConnectionConfig();
-  }, []);
 
   const handleIdentityChange = useCallback((name: string) => {
     setIdentity(name);
@@ -125,25 +109,28 @@ export default function App() {
   return (
     <div className="app">
       <header className="app__header">
+        <div className="app__brand app__brand--left">
+          <BrandLogo src="/logos/sa-technologies.svg" alt="SA Technologies" />
+        </div>
         <div className="app__title-block">
           <span className="app__eyebrow">Proof of Concept</span>
-          <h1>
-            <span className="app__balloon">🎈</span> Ballooned Drawing Extraction
-          </h1>
-          <p className="app__subtitle">
-            Upload a ballooned drawing to see what Document Intelligence + Claude extract, then
-            review every balloon against the source before it's exportable (see
-            architecture-poc.md and src/reconciliation.py).
-          </p>
+          <h1>Ballooned Drawing Extraction</h1>
         </div>
-        <ConnectionBar config={config} onSave={handleSaveConfig} onClear={handleClearConfig} />
+        <div className="app__brand app__brand--right">
+          <BrandLogo src="/logos/wabtec.svg" alt="Wabtec" />
+        </div>
       </header>
 
       <div className="app__layout">
         <main className="app__main">
           <UploadPanel disabled={!config} submitting={view.kind === "loading"} onSubmit={handleUpload} />
 
-          {!config && <p className="app__hint">Configure your backend URL and key above to get started.</p>}
+          {!config && (
+            <p className="app__hint">
+              Backend isn't configured. Set <code>VITE_API_BASE_URL</code> and{" "}
+              <code>VITE_API_ACCESS_KEY</code> (see .env.example) and rebuild/restart.
+            </p>
+          )}
 
           {view.kind === "error" && (
             <div className="app__error" role="alert">
