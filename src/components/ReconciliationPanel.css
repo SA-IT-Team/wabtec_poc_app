@@ -101,8 +101,14 @@
 
 .reconciliation-panel__wrap {
   overflow-x: auto;
+  overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
+  /* The panel sits in a fixed-height column (see App.css's .app__results-col) -- this is the part
+     of it that scrolls, so the head/identity/footer around it stay visible rather than scrolling
+     out of reach when the balloon list is long. */
+  flex: 1;
+  min-height: 0;
 }
 
 .reconciliation-panel__table {
@@ -123,6 +129,9 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .reconciliation-panel__table tbody td {

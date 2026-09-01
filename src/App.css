@@ -95,14 +95,25 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1.25rem;
-  align-items: start;
+  /* default (stretch): both columns take the row's full height, so the shorter of the two
+     (balloon table vs. reconciliation panel) is stretched to match the taller one -- same height,
+     aligned tops and bottoms, rather than each just being as tall as its own content. */
 }
 
 .app__results-col {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
   min-width: 0;
+  /* A shared height cap so "same height" holds even when one side's content would otherwise run
+     much longer than the other -- each side scrolls internally past this rather than growing the
+     page or fighting the other column's size. */
+  height: 65vh;
+  min-height: 24rem;
+}
+
+.app__results-col > * {
+  flex: 1;
+  min-height: 0;
 }
 
 .app__main {

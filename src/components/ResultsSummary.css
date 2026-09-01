@@ -10,8 +10,11 @@
 }
 
 .results-summary__row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  /* Drawing/Rev/Detected/Extracted share equal width; Job gets extra room of its own so a full
+     UUID has space to sit on one (or two wrapped) line(s) instead of being truncated. Together
+     the columns always fill the panel's full width, however wide it is. */
+  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(14rem, 2fr);
   gap: 1.5rem;
 }
 
@@ -19,10 +22,12 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  min-width: 0;
 }
 
 .results-summary__label {
   font-size: 0.68rem;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -37,6 +42,17 @@
 .results-summary__value--mono {
   font-size: 0.82rem;
   color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .results-summary__row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .results-summary__field--job {
+    grid-column: 1 / -1;
+  }
 }
 
 .results-summary__export {

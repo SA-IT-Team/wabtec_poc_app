@@ -153,9 +153,10 @@ export default function App() {
                 <DrawingPreview url={preview.url} name={preview.name} type={preview.type} />
               )}
 
+              <ResultsSummary result={view.result} />
+
               <div className="app__results-grid">
                 <div className="app__results-col">
-                  <ResultsSummary result={view.result} />
                   {"balloons" in view.result && <BalloonTable balloons={view.result.balloons} />}
                 </div>
 

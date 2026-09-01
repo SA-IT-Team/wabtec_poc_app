@@ -36,11 +36,9 @@ export function ResultsSummary({ result }: ResultsSummaryProps) {
           <span className="results-summary__label">Extracted</span>
           <span className="results-summary__value">{extracted}</span>
         </div>
-        <div className="results-summary__field">
+        <div className="results-summary__field results-summary__field--job">
           <span className="results-summary__label">Job</span>
-          <span className="results-summary__value results-summary__value--mono" title={result.job_id}>
-            {result.job_id.slice(0, 8)}…
-          </span>
+          <span className="results-summary__value results-summary__value--mono">{result.job_id}</span>
         </div>
       </div>
 

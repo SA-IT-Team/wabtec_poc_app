@@ -1,5 +1,6 @@
 .balloon-table__wrap {
   overflow-x: auto;
+  overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
@@ -24,6 +25,9 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .balloon-table tbody td {
