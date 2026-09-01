@@ -77,6 +77,14 @@
   max-width: 28ch;
   font-size: 0.8rem;
   color: var(--ink-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.balloon-table__confidence-reason {
+  font-style: italic;
+  color: var(--ink-faint);
 }
 
 .balloon-table__error {

@@ -62,7 +62,13 @@ export function BalloonTable({ balloons }: BalloonTableProps) {
                   </span>
                 </td>
                 <td className="balloon-table__notes">
-                  {b.extraction_error ? <span className="balloon-table__error">{b.extraction_error}</span> : b.notes ?? ""}
+                  {b.notes && <div>{b.notes}</div>}
+                  {b.confidence_reason && (
+                    <div className="balloon-table__confidence-reason" title="Why the model scored confidence this way">
+                      {b.confidence_reason}
+                    </div>
+                  )}
+                  {b.extraction_error && <div className="balloon-table__error">{b.extraction_error}</div>}
                 </td>
               </tr>
             );

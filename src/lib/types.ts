@@ -32,6 +32,10 @@ export interface ExtractedBalloon {
   surface_finish: string | null;
   notes: string | null;
   confidence: number;
+  /** The model's own explanation of why it scored confidence the way it did -- see
+   * wabtec_poc/src/models.py's ExtractedBalloon.confidence_reason. Surfaced in the Notes column
+   * alongside `notes` and `extraction_error`. */
+  confidence_reason: string | null;
   extraction_error: string | null;
   blocked: boolean;
 }

@@ -17,6 +17,7 @@ function balloon(overrides: Partial<ExtractedBalloon> = {}): ExtractedBalloon {
     surface_finish: null,
     notes: null,
     confidence: 0.94,
+    confidence_reason: null,
     extraction_error: null,
     blocked: false,
     ...overrides,
@@ -50,6 +51,23 @@ describe("BalloonTable", () => {
     );
     expect(screen.getByText(/not returned by the extraction model/)).toBeInTheDocument();
     expect(screen.getByText("0%")).toHaveClass("balloon-table__confidence--low");
+  });
+
+  it("shows the model's confidence reasoning in the Notes column, alongside notes and errors", () => {
+    render(
+      <BalloonTable
+        balloons={[
+          balloon({
+            notes: "reviewer-corrected",
+            confidence_reason: "Digit smudged by a fold in the scan; inferred from the general-tolerance note instead.",
+            extraction_error: "repair attempt failed",
+          }),
+        ]}
+      />
+    );
+    expect(screen.getByText("reviewer-corrected")).toBeInTheDocument();
+    expect(screen.getByText(/digit smudged by a fold/i)).toBeInTheDocument();
+    expect(screen.getByText("repair attempt failed")).toBeInTheDocument();
   });
 
   it("formats a GD&T feature control frame", () => {
