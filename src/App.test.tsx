@@ -328,4 +328,70 @@ describe("App", () => {
     expect(exportCall[0]).toBe("https://bdx-poc.vercel.app/api/drawings/job-1/export");
     expect(JSON.parse((exportCall[1]?.body as string) ?? "{}")).toEqual({ templateId: "generic-flat" });
   });
+
+  it("shows the extracted fields for a job reopened from history, not just its reconciliation panel", async () => {
+    // GET /api/drawings/{jobId} (what reopening from history uses) only returns summary counts,
+    // no per-balloon detail -- the balloon table has to come from ReconciliationPanel's own fetch
+    // reporting back via onRecordLoaded instead. Regression test: this used to render as blank.
+    const user = userEvent.setup();
+
+    const job1Result: ExtractionResult = {
+      job_id: "job-1",
+      drawing_number: "DWG-1",
+      revision: "A",
+      balloon_count_detected: 1,
+      balloon_count_extracted: 1,
+      balloon_count_mismatch: false,
+      balloons: [],
+      export_url: null,
+      reconciliation: {
+        job_id: "job-1", total_balloons: 1, pending: 1, reconciled: 0, cannot_determine: 0,
+        percent_complete: 0, ready_for_signoff: false, signed_off: false, signed_off_by: null, signed_off_at: null,
+      },
+    };
+    const job1Reconciliation = reconciliationFor("job-1", "DWG-1");
+    const job2Result: ExtractionResult = { ...job1Result, job_id: "job-2", drawing_number: "DWG-2" };
+    const job2Reconciliation = reconciliationFor("job-2", "DWG-2");
+    const job1JobRecord = {
+      job_id: "job-1",
+      file_name: "dwg1.pdf",
+      status: "Complete" as const,
+      drawing_number: "DWG-1",
+      revision: "A",
+      balloon_count_detected: 1,
+      balloon_count_extracted: 1,
+      avg_confidence: 0.94,
+      created_at: "2026-08-26T00:00:00Z",
+      completed_at: "2026-08-26T00:01:00Z",
+      error_reason: null,
+    };
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(job1Result)) // extract dwg1
+      .mockResolvedValueOnce(jsonResponse(job1Reconciliation)) // ReconciliationPanel loads for job-1
+      .mockResolvedValueOnce(jsonResponse(job2Result)) // extract dwg2
+      .mockResolvedValueOnce(jsonResponse(job2Reconciliation)) // ReconciliationPanel switches to job-2
+      .mockResolvedValueOnce(jsonResponse(job1JobRecord)) // reopening job-1 from history: GET /api/drawings/job-1
+      .mockResolvedValueOnce(jsonResponse(job1Reconciliation)); // ReconciliationPanel switches back to job-1
+
+    render(<App />);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, new File(["%PDF-1.4"], "dwg1.pdf", { type: "application/pdf" }));
+    await user.click(screen.getByRole("button", { name: /extract/i }));
+    await waitFor(() => expect(screen.getByText("DWG-1")).toBeInTheDocument());
+
+    await user.upload(input, new File(["%PDF-1.4"], "dwg2.pdf", { type: "application/pdf" }));
+    await user.click(screen.getByRole("button", { name: /extract/i }));
+    await waitFor(() => expect(screen.getByText("DWG-2")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: /dwg1\.pdf/i }));
+
+    // Scoped specifically to the extracted-fields BalloonTable, not just anywhere on the page --
+    // ReconciliationPanel shows balloon #12 too, but that was never the broken half.
+    await waitFor(() => expect(document.querySelector(".balloon-table__wrap")).not.toBeNull());
+    const balloonTable = document.querySelector(".balloon-table__wrap") as HTMLElement;
+    expect(within(balloonTable).getByText("12")).toBeInTheDocument();
+    expect(screen.queryByText(/no balloons in this result/i)).not.toBeInTheDocument();
+  });
 });

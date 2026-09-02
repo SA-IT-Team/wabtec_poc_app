@@ -10,6 +10,11 @@ interface ReconciliationPanelProps {
   config: ConnectionConfig | null;
   identity: string;
   onIdentityChange: (name: string) => void;
+  /** Called with the full record every time it (re)loads -- lets a parent that doesn't otherwise
+   * have the balloon list (e.g. a job reopened from history, where GET /api/drawings/{jobId}
+   * returns only summary counts, not per-balloon detail) reuse this fetch instead of duplicating
+   * it. See App.tsx. */
+  onRecordLoaded?: (record: ReconciliationRecord) => void;
 }
 
 type OpenForm = { key: string; kind: "correct" | "cannotDetermine" } | null;
@@ -27,7 +32,7 @@ function describeError(err: unknown): string {
   return "An unknown error occurred.";
 }
 
-export function ReconciliationPanel({ jobId, config, identity, onIdentityChange }: ReconciliationPanelProps) {
+export function ReconciliationPanel({ jobId, config, identity, onIdentityChange, onRecordLoaded }: ReconciliationPanelProps) {
   const [record, setRecord] = useState<ReconciliationRecord | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -43,10 +48,11 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange 
       const next = await getReconciliation(config, jobId);
       setRecord(next);
       setLoadError(null);
+      onRecordLoaded?.(next);
     } catch (err) {
       setLoadError(describeError(err));
     }
-  }, [config, jobId]);
+  }, [config, jobId, onRecordLoaded]);
 
   useEffect(() => {
     setRecord(null);

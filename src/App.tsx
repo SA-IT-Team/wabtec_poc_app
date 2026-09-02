@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError, extractDrawingSmart, getDrawingResult, type UploadStage } from "./lib/api";
 import { getEnvConnectionConfig } from "./lib/env";
 import { addHistoryEntry, clearHistory, loadHistory, loadIdentity, saveIdentity } from "./lib/storage";
-import type { ExtractionResult, HistoryEntry, JobRecord } from "./lib/types";
+import type { ExtractedBalloon, ExtractionResult, HistoryEntry, JobRecord, ReconciliationRecord } from "./lib/types";
 import { AssistantPanel } from "./components/AssistantPanel";
 import { BalloonTable } from "./components/BalloonTable";
 import { BrandLogo } from "./components/BrandLogo";
@@ -35,6 +35,12 @@ export default function App() {
   const [view, setView] = useState<ViewState>({ kind: "idle" });
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewState | null>(null);
+  // A job reopened from history has no `balloons` on its result (GET /api/drawings/{jobId}
+  // returns only summary counts, not per-balloon detail) -- ReconciliationPanel fetches the full
+  // record for its own review UI anyway, so it reports that back here via onRecordLoaded instead
+  // of this component duplicating the same fetch. Null until that arrives, or for a job that was
+  // just uploaded (its result already carries `balloons` directly -- see the render below).
+  const [historyBalloons, setHistoryBalloons] = useState<ExtractedBalloon[] | null>(null);
   const previewUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -57,9 +63,14 @@ export default function App() {
     saveIdentity(name);
   }, []);
 
+  const handleReconciliationLoaded = useCallback((record: ReconciliationRecord) => {
+    setHistoryBalloons(record.balloons.map((b) => b.extracted));
+  }, []);
+
   const handleUpload = useCallback(
     async (file: File, templateId: string) => {
       setView({ kind: "loading" });
+      setHistoryBalloons(null);
       try {
         const result = await extractDrawingSmart(config, file, {
           templateId,
@@ -91,6 +102,7 @@ export default function App() {
     async (jobId: string) => {
       setActiveJobId(jobId);
       setView({ kind: "loading" });
+      setHistoryBalloons(null); // this job's balloons haven't arrived yet -- see ReconciliationPanel's onRecordLoaded
       try {
         const job = await getDrawingResult(config, jobId);
         setView({ kind: "result", result: job });
@@ -157,7 +169,13 @@ export default function App() {
 
               <div className="app__results-grid">
                 <div className="app__results-col">
-                  {"balloons" in view.result && <BalloonTable balloons={view.result.balloons} />}
+                  {"balloons" in view.result ? (
+                    <BalloonTable balloons={view.result.balloons} />
+                  ) : historyBalloons ? (
+                    <BalloonTable balloons={historyBalloons} />
+                  ) : (
+                    <p className="app__hint">Loading extracted fields…</p>
+                  )}
                 </div>
 
                 {activeJobId && (
@@ -167,6 +185,7 @@ export default function App() {
                       config={config}
                       identity={identity}
                       onIdentityChange={handleIdentityChange}
+                      onRecordLoaded={handleReconciliationLoaded}
                     />
                   </div>
                 )}
