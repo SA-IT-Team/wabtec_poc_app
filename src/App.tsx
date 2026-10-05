@@ -125,12 +125,12 @@ export default function App() {
           <BrandLogo src="/logos/sa-technologies.jpg" alt="SA Technologies" onWhiteChip />
         </div>
         <div className="app__title-block">
-          <span className="app__eyebrow">Proof of Concept</span>
-          <h1>Ballooned Drawing Extraction</h1>
+          {/* <span className="app__eyebrow">Proof of Concept</span> */}
+          <h1>Engineering Drawing Extraction</h1>
         </div>
-        <div className="app__brand app__brand--right">
+        {/* <div className="app__brand app__brand--right">
           <BrandLogo src="/logos/wabtec.png" alt="Wabtec" />
-        </div>
+        </div> */}
       </header>
 
       <div className="app__layout">
