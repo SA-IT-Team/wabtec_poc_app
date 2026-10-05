@@ -54,8 +54,8 @@ export default function App() {
 
   useEffect(() => {
     document.title = config
-      ? `Ballooned Drawing Extraction — ${new URL(config.baseUrl, window.location.href).host}`
-      : "Ballooned Drawing Extraction — POC";
+      ? `Engineering Drawing Extraction — ${new URL(config.baseUrl, window.location.href).host}`
+      : "Engineering Drawing Extraction — POC";
   }, [config]);
 
   const handleIdentityChange = useCallback((name: string) => {
