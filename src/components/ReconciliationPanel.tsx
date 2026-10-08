@@ -133,10 +133,7 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange,
       <div className="reconciliation-panel__head">
         <div>
           <h3>Reconciliation</h3>
-          <p className="reconciliation-panel__subtitle">
-            Every balloon needs a human review before this drawing can be exported — automated extraction alone can't
-            guarantee accuracy.
-          </p>
+          <p className="reconciliation-panel__subtitle">Human review of every value is required before export.</p>
         </div>
         <div className="reconciliation-panel__progress">
           <span className="reconciliation-panel__progress-count">
@@ -153,7 +150,7 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange,
       </div>
 
       <div className="reconciliation-panel__identity">
-        <label htmlFor="identity">Reviewing / signing as</label>
+        <label htmlFor="identity">Reviewer</label>
         <input
           id="identity"
           type="text"
@@ -164,7 +161,7 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange,
         {record.submitted_by && (
           <span className="reconciliation-panel__submitter">
             submitted by <code>{record.submitted_by}</code>
-            {identityIsSubmitter && " — you can't also review your own submission"}
+            {identityIsSubmitter && <span className="reconciliation-panel__submitter-warn"> — can't review own submission</span>}
           </span>
         )}
       </div>
@@ -179,7 +176,7 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange,
         <table className="reconciliation-panel__table">
           <thead>
             <tr>
-              <th>Balloon</th>
+              <th>#</th>
               <th>Extracted</th>
               <th>Status</th>
               <th>Reviewed</th>
@@ -251,7 +248,7 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange,
           </a>
         )}
         {!record.signed_off && !readyForSignoff && (
-          <span className="reconciliation-panel__hint">Review every balloon to enable sign-off.</span>
+          <span className="reconciliation-panel__hint">Review every row to enable sign-off.</span>
         )}
       </div>
     </section>
@@ -344,11 +341,17 @@ function BalloonReviewRow({
               <button type="button" className="btn btn--small btn--primary" disabled={busy} onClick={onConfirm}>
                 Confirm
               </button>
-              <button type="button" className="btn btn--small btn--ghost" disabled={busy} onClick={onOpenCorrect}>
+              <button type="button" className="btn btn--small btn--ghost" disabled={busy} onClick={onOpenCorrect} title="Enter the correct value">
                 Correct
               </button>
-              <button type="button" className="btn btn--small btn--ghost" disabled={busy} onClick={onOpenCannotDetermine}>
-                Can't determine
+              <button
+                type="button"
+                className="btn btn--small btn--ghost"
+                disabled={busy}
+                onClick={onOpenCannotDetermine}
+                title="Can't determine from the source drawing"
+              >
+                Flag
               </button>
             </div>
           )}
@@ -412,6 +415,6 @@ function BalloonReviewRow({
 
 function StatusTag({ status, discrepancy }: { status: BalloonReviewRecord["status"]; discrepancy: boolean }) {
   if (status === "pending") return <StatusPill tone="neutral">pending</StatusPill>;
-  if (status === "cannot_determine") return <StatusPill tone="warn">can't determine</StatusPill>;
-  return <StatusPill tone="good">{discrepancy ? "reconciled (corrected)" : "reconciled"}</StatusPill>;
+  if (status === "cannot_determine") return <StatusPill tone="warn">flagged</StatusPill>;
+  return <StatusPill tone="good">{discrepancy ? "corrected" : "confirmed"}</StatusPill>;
 }

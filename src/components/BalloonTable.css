@@ -1,27 +1,65 @@
-.balloon-table__wrap {
-  overflow-x: auto;
-  overflow-y: auto;
+.balloon-table__card {
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
-  background: var(--surface);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.balloon-table__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.balloon-table__head h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.balloon-table__meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.balloon-table__meta-warn {
+  color: var(--warn);
+}
+
+.balloon-table__toggle-all {
+  margin-left: auto;
+}
+
+/* The part that scrolls -- only when a drawing has more rows than fit (App.css caps the column at
+   the viewport height). */
+.balloon-table__wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
 .balloon-table {
   width: 100%;
-  min-width: 720px;
   border-collapse: collapse;
-  font-size: 0.86rem;
+  font-size: 0.8rem;
 }
 
 .balloon-table thead th {
   text-align: left;
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-faint);
-  padding: 0.6rem 0.8rem;
+  padding: 0.5rem 0.55rem;
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -31,9 +69,9 @@
 }
 
 .balloon-table tbody td {
-  padding: 0.55rem 0.8rem;
+  padding: 0.45rem 0.55rem;
   border-bottom: 1px solid var(--line);
-  vertical-align: top;
+  vertical-align: middle;
   color: var(--ink);
 }
 
@@ -49,21 +87,29 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.9rem;
-  padding: 0.1rem 0.4rem;
+  min-width: 1.7rem;
+  padding: 0.1rem 0.35rem;
   border-radius: 999px;
   border: 1.5px solid var(--accent);
   color: var(--accent-ink);
   background: var(--accent-soft);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 600;
+}
+
+.balloon-table__unit {
+  color: var(--ink-faint);
 }
 
 .balloon-table__mono {
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   color: var(--ink-soft);
+}
+
+.balloon-table__nowrap {
+  white-space: nowrap;
 }
 
 .balloon-table__confidence {
@@ -77,9 +123,40 @@
   font-weight: 600;
 }
 
+.balloon-table__expand-cell {
+  width: 2rem;
+  text-align: right;
+}
+
+.balloon-table__expand {
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.balloon-table__expand:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.balloon-table__expand--error {
+  border-color: color-mix(in srgb, var(--bad) 50%, var(--line));
+  color: var(--bad);
+}
+
+.balloon-table__detail td {
+  background: var(--surface-2);
+  padding: 0.55rem 0.8rem 0.65rem 2.9rem;
+}
+
 .balloon-table__notes {
-  max-width: 28ch;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
   color: var(--ink-soft);
   display: flex;
   flex-direction: column;

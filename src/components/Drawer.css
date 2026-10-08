@@ -1,0 +1,192 @@
+.drawer__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(20 20 20 / 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.drawer__backdrop--open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  z-index: 50;
+  width: min(560px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  box-shadow: 0 0 32px rgb(0 0 0 / 0.18);
+  visibility: hidden;
+  transition: transform 0.25s ease, visibility 0s linear 0.25s;
+}
+
+.drawer--right {
+  right: 0;
+  transform: translateX(100%);
+  border-left: 1px solid var(--line);
+}
+
+.drawer--left {
+  left: 0;
+  width: min(400px, 100vw);
+  transform: translateX(-100%);
+  border-right: 1px solid var(--line);
+}
+
+.drawer--open {
+  transform: translateX(0);
+  visibility: visible;
+  transition: transform 0.25s ease, visibility 0s;
+}
+
+.drawer__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1.1rem 1.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer__icon {
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
+.drawer__title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.drawer__x {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px;
+}
+
+.drawer__x:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.drawer__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 1.1rem 1.4rem;
+}
+
+.drawer__footer {
+  flex: none;
+  padding: 0.8rem 1.4rem 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.drawer__close {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ---------- edge launchers ---------- */
+
+/* Left: slim rail, like a collapsed nav. */
+.edge-rail {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  width: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding-top: 1.25rem;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+
+.edge-rail__btn {
+  position: relative;
+  width: 2.4rem;
+  height: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.edge-rail__btn:hover {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.edge-rail__badge {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  min-width: 1.1rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.6rem;
+  line-height: 1.1rem;
+}
+
+/* Right: vertical tab stuck to the viewport edge. */
+.edge-tab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  z-index: 30;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 0.55rem;
+  border: none;
+  border-radius: 8px 0 0 8px;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: -2px 2px 12px rgb(0 0 0 / 0.18);
+  cursor: pointer;
+}
+
+.edge-tab:hover {
+  background: var(--accent-ink);
+}
+
+.edge-tab__label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}

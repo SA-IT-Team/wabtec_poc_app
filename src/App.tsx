@@ -6,8 +6,8 @@ import type { ExtractedBalloon, ExtractionResult, HistoryEntry, JobRecord, Recon
 import { AssistantPanel } from "./components/AssistantPanel";
 import { BalloonTable } from "./components/BalloonTable";
 import { BrandLogo } from "./components/BrandLogo";
-import { CollapsiblePanel } from "./components/CollapsiblePanel";
 import { DrawingPreview } from "./components/DrawingPreview";
+import { Drawer } from "./components/Drawer";
 import { JobHistory } from "./components/JobHistory";
 import { ReconciliationPanel } from "./components/ReconciliationPanel";
 import { ResultsSummary } from "./components/ResultsSummary";
@@ -42,6 +42,10 @@ export default function App() {
   // just uploaded (its result already carries `balloons` directly -- see the render below).
   const [historyBalloons, setHistoryBalloons] = useState<ExtractedBalloon[] | null>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const [jobsOpen, setJobsOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const closeJobs = useCallback(() => setJobsOpen(false), []);
+  const closeAssistant = useCallback(() => setAssistantOpen(false), []);
 
   useEffect(() => {
     previewUrlRef.current = preview?.url ?? null;
@@ -120,6 +124,39 @@ export default function App() {
 
   return (
     <div className="app">
+      <nav className="edge-rail" aria-label="Workspace">
+        <button type="button" className="edge-rail__btn" title="Recent jobs" aria-label="Open recent jobs" onClick={() => setJobsOpen(true)}>
+          ›
+        </button>
+        <button type="button" className="edge-rail__btn" title="Recent jobs" aria-label="Recent jobs list" onClick={() => setJobsOpen(true)}>
+          ☰
+          {history.length > 0 && <span className="edge-rail__badge">{history.length}</span>}
+        </button>
+      </nav>
+
+      {activeJobId && (
+        <button type="button" className="edge-tab" aria-label="Open AI assistant" onClick={() => setAssistantOpen(true)}>
+          <span aria-hidden="true">✦</span>
+          <span className="edge-tab__label">AI Assistant</span>
+        </button>
+      )}
+
+      <Drawer side="left" title="Recent jobs" icon="☰" open={jobsOpen} onClose={closeJobs}>
+        <JobHistory
+          entries={history}
+          activeJobId={activeJobId}
+          onSelect={(jobId) => {
+            setJobsOpen(false);
+            void handleSelectHistory(jobId);
+          }}
+          onClear={handleClearHistory}
+        />
+      </Drawer>
+
+      <Drawer side="right" title="AI assistant" icon="✦" open={assistantOpen && !!activeJobId} onClose={closeAssistant}>
+        {activeJobId && <AssistantPanel key={activeJobId} jobId={activeJobId} config={config} />}
+      </Drawer>
+
       <header className="app__header">
         <div className="app__brand app__brand--left">
           <BrandLogo src="/logos/sa-technologies.jpg" alt="SA Technologies" onWhiteChip />
@@ -128,9 +165,9 @@ export default function App() {
           {/* <span className="app__eyebrow">Proof of Concept</span> */}
           <h1>Engineering Drawing Extraction</h1>
         </div>
-        {/* <div className="app__brand app__brand--right">
+        <div className="app__brand app__brand--right">
           <BrandLogo src="/logos/wabtec.png" alt="Wabtec" />
-        </div> */}
+        </div>
       </header>
 
       <div className="app__layout">
@@ -161,11 +198,14 @@ export default function App() {
 
           {view.kind === "result" && (
             <section className="app__results">
-              {preview && preview.jobId === activeJobId && (
-                <DrawingPreview url={preview.url} name={preview.name} type={preview.type} />
+              {preview && preview.jobId === activeJobId ? (
+                <div className="app__top-row">
+                  <DrawingPreview url={preview.url} name={preview.name} type={preview.type} />
+                  <ResultsSummary result={view.result} />
+                </div>
+              ) : (
+                <ResultsSummary result={view.result} />
               )}
-
-              <ResultsSummary result={view.result} />
 
               <div className="app__results-grid">
                 <div className="app__results-col">
@@ -194,22 +234,6 @@ export default function App() {
           )}
         </main>
 
-        <aside className="app__sidebar">
-          <CollapsiblePanel title="Recent jobs" storageKey="recent-jobs">
-            <JobHistory entries={history} activeJobId={activeJobId} onSelect={handleSelectHistory} onClear={handleClearHistory} />
-          </CollapsiblePanel>
-
-          {activeJobId && (
-            <CollapsiblePanel
-              title="AI assistant"
-              subtitle="Analysis and feedback on this drawing's data"
-              storageKey="ai-assistant"
-              scrollable
-            >
-              <AssistantPanel jobId={activeJobId} config={config} />
-            </CollapsiblePanel>
-          )}
-        </aside>
       </div>
     </div>
   );

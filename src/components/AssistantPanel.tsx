@@ -11,6 +11,16 @@ interface AssistantPanelProps {
 
 type Tab = "feedback" | "chat";
 
+/** One-click prompts for the chat tab -- the common questions a reviewer asks about a drawing. */
+const QUICK_ACTIONS = [
+  "Summarise this drawing",
+  "Which values have low confidence?",
+  "Are any tolerances missing?",
+  "Check GD&T callouts for missing datums",
+  "What should I verify before sign-off?",
+  "Explain the count mismatch",
+];
+
 const CATEGORY_LABELS: Record<AnalysisFinding["category"], string> = {
   missing_info: "Missing information",
   incomplete_data: "Incomplete data",
@@ -56,10 +66,9 @@ export function AssistantPanel({ jobId, config }: AssistantPanelProps) {
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
-  const sendMessage = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      const message = draft.trim();
+  const send = useCallback(
+    async (raw: string) => {
+      const message = raw.trim();
       if (!message || sending) return;
 
       const history = turns; // prior turns only -- the new message is sent separately, see api.ts
@@ -76,8 +85,13 @@ export function AssistantPanel({ jobId, config }: AssistantPanelProps) {
         setSending(false);
       }
     },
-    [config, jobId, draft, turns, sending]
+    [config, jobId, turns, sending]
   );
+
+  const sendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    void send(draft);
+  };
 
   return (
     <div className="assistant-panel">
@@ -158,11 +172,21 @@ export function AssistantPanel({ jobId, config }: AssistantPanelProps) {
 
       {tab === "chat" && (
         <div className="assistant-panel__chat">
+          <div className="assistant-panel__quick">
+            <span className="assistant-panel__quick-title">Quick actions for this drawing</span>
+            <div className="assistant-panel__chips">
+              {QUICK_ACTIONS.map((q) => (
+                <button key={q} type="button" className="assistant-panel__chip" disabled={sending} onClick={() => void send(q)}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="assistant-panel__transcript" role="log">
             {turns.length === 0 && (
               <p className="assistant-panel__empty">
-                Ask anything about this drawing's data — counts, values, tolerances, GD&amp;T, review
-                status.
+                Pick a quick action above, or ask anything about this drawing's data — counts, values,
+                tolerances, GD&amp;T, review status.
               </p>
             )}
             {turns.map((t, i) => (

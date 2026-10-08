@@ -60,7 +60,24 @@
   padding: 0 1rem 1rem;
 }
 
+/* Fill mode: the panel takes all remaining sidebar height and its body hands that height to the
+   content, which picks the one region that scrolls (e.g. AI assistant's transcript). */
+.collapsible-panel--fill {
+  flex: 1;
+  min-height: 22rem;
+  display: flex;
+  flex-direction: column;
+}
+
 .collapsible-panel__body--scrollable {
-  max-height: 28rem;
-  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 960px) {
+  .collapsible-panel__body--scrollable {
+    height: 32rem;
+  }
 }

@@ -1,7 +1,8 @@
 .app {
   max-width: 1680px;
   margin: 0 auto;
-  padding: 2rem clamp(1rem, 4vw, 3rem) 4rem;
+  /* left padding clears the fixed edge rail (see Drawer.css .edge-rail) */
+  padding: 2rem clamp(1rem, 4vw, 3rem) 4rem calc(3.5rem + clamp(1rem, 4vw, 3rem));
 }
 
 .app__header {
@@ -75,45 +76,42 @@
 }
 
 .app__layout {
+  display: block;
+}
+
+/* Row 1: drawing preview (75%) beside the extraction summary card (25%), same height. */
+.app__top-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 2rem;
-  align-items: start;
-}
-
-.app__sidebar {
-  position: sticky;
-  top: 1.5rem;
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
   gap: 1.25rem;
-  max-height: calc(100vh - 3rem);
-  overflow-y: auto;
 }
 
+/* Row 2: extracted values and reconciliation side by side. Both columns stretch to the taller
+   one's height (capped at the viewport) so tops and bottoms line up, and each table scrolls
+   inside its own card only when a drawing has more rows than fit on screen. */
 .app__results-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1.25rem;
-  /* default (stretch): both columns take the row's full height, so the shorter of the two
-     (balloon table vs. reconciliation panel) is stretched to match the taller one -- same height,
-     aligned tops and bottoms, rather than each just being as tall as its own content. */
 }
 
 .app__results-col {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  /* A shared height cap so "same height" holds even when one side's content would otherwise run
-     much longer than the other -- each side scrolls internally past this rather than growing the
-     page or fighting the other column's size. */
-  height: 65vh;
-  min-height: 24rem;
+  max-height: calc(100vh - 3rem);
 }
 
 .app__results-col > * {
   flex: 1;
   min-height: 0;
+}
+
+@media (max-width: 1100px) {
+  .app__top-row,
+  .app__results-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .app__main {
@@ -166,23 +164,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-}
-
-@media (max-width: 960px) {
-  .app__layout {
-    grid-template-columns: 1fr;
-  }
-
-  .app__sidebar {
-    position: relative;
-    top: 0;
-  }
-}
-
-@media (max-width: 760px) {
-  .app__results-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 640px) {

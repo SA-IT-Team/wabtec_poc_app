@@ -143,7 +143,8 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText("0 / 1 reconciled")).toBeInTheDocument());
 
     // it also lands in job history
-    const history = screen.getByText(/recent jobs/i).closest<HTMLElement>(".collapsible-panel")!;
+    await user.click(screen.getByRole("button", { name: /open recent jobs/i }));
+    const history = screen.getByRole("dialog", { name: /recent jobs/i });
     expect(within(history).getByText("dwg.pdf")).toBeInTheDocument();
   });
 
@@ -303,7 +304,7 @@ describe("App", () => {
 
     await waitFor(() => expect(screen.getByText("0 / 1 reconciled")).toBeInTheDocument());
 
-    await user.type(screen.getByLabelText(/reviewing \/ signing as/i), "bob");
+    await user.type(screen.getByLabelText(/^reviewer$/i), "bob");
     await user.click(screen.getByRole("button", { name: "Confirm" }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: /sign off/i })).not.toBeDisabled());
@@ -385,6 +386,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /extract/i }));
     await waitFor(() => expect(screen.getByText("DWG-2")).toBeInTheDocument());
 
+    await user.click(screen.getByRole("button", { name: /open recent jobs/i }));
     await user.click(screen.getByRole("button", { name: /dwg1\.pdf/i }));
 
     // Scoped specifically to the extracted-fields BalloonTable, not just anywhere on the page --

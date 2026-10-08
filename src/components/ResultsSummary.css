@@ -7,6 +7,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  /* Lays itself out by its own width: a one-row strip when full-width, a stacked card when it
+     sits in the narrow column beside the drawing preview (App.css .app__top-row). */
+  container-type: inline-size;
 }
 
 .results-summary__row {
@@ -58,4 +61,46 @@
 .results-summary__export {
   align-self: flex-start;
   text-decoration: none;
+}
+
+.results-summary .status-pill {
+  white-space: normal;
+}
+
+@container (max-width: 520px) {
+  .results-summary__row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .results-summary__field {
+    padding: 0.7rem 0.8rem;
+    background: var(--surface-2);
+    border-radius: 6px;
+  }
+
+  .results-summary__field--job {
+    grid-column: 1 / -1;
+  }
+
+  .results-summary__value {
+    font-size: 1.35rem;
+    font-weight: 600;
+  }
+
+  .results-summary__value--mono {
+    font-size: 0.78rem;
+    font-weight: 400;
+  }
+
+  .results-summary .status-pill {
+    border-radius: 6px;
+    padding: 0.45rem 0.65rem;
+    line-height: 1.4;
+  }
+
+  .results-summary__export {
+    align-self: stretch;
+    text-align: center;
+  }
 }

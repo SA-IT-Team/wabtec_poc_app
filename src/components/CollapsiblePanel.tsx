@@ -8,8 +8,9 @@ interface CollapsiblePanelProps {
    * (e.g. "recent-jobs", "ai-assistant"). */
   storageKey: string;
   defaultOpen?: boolean;
-  /** Caps the body's height and lets it scroll internally instead of growing indefinitely -- for
-   * panels whose content can get arbitrarily long (e.g. AI Assistant's findings list/chat). */
+  /** Makes the panel fill the remaining height of its flex-column parent (the sidebar) and hands
+   * that height to its content, which scrolls internally -- for panels whose content can get
+   * arbitrarily long (e.g. AI Assistant's findings list/chat). */
   scrollable?: boolean;
   children: ReactNode;
 }
@@ -55,7 +56,9 @@ export function CollapsiblePanel({
   }
 
   return (
-    <section className={`collapsible-panel${open ? "" : " collapsible-panel--collapsed"}`}>
+    <section
+      className={`collapsible-panel${open ? "" : " collapsible-panel--collapsed"}${open && scrollable ? " collapsible-panel--fill" : ""}`}
+    >
       <button type="button" className="collapsible-panel__header" onClick={toggle} aria-expanded={open}>
         <span className="collapsible-panel__chevron" aria-hidden="true">
           {open ? "▾" : "▸"}
