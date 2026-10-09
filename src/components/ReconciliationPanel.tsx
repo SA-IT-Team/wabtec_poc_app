@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiClientError, exportDrawing, getReconciliation, reviewBalloon, signOff } from "../lib/api";
+import { ApiClientError, confirmAllPending, exportDrawing, getReconciliation, reviewBalloon, signOff } from "../lib/api";
 import { DEFAULT_TEMPLATE_ID, EXPORT_TEMPLATES } from "../lib/templates";
 import type { BalloonReviewRecord, ConnectionConfig, ExtractedBalloon, ReconciliationRecord } from "../lib/types";
 import { StatusPill } from "./StatusPill";
@@ -42,6 +42,7 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange,
   // null until the reviewer explicitly picks a different one -- exportDrawing then falls back to
   // whatever template was chosen at upload (see api.ts / wabtec_poc/src/excel_templates.py).
   const [templateChoice, setTemplateChoice] = useState<string | null>(null);
+  const [confirmAllOpen, setConfirmAllOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -73,6 +74,24 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange,
       await reviewBalloon(config, jobId, balloon.page, balloon.balloon_number, identity, action, extra);
       setOpenForm(null);
       await load();
+    } catch (err) {
+      setActionError(describeError(err));
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  /** Confirms every still-pending row as extracted, in one request -- the backend applies them all
+   * in a single save (rows a reviewer already corrected or flagged are left untouched). */
+  async function handleConfirmAll() {
+    setConfirmAllOpen(false);
+    setBusyKey("__confirm_all__");
+    setActionError(null);
+    setOpenForm(null);
+    try {
+      const next = await confirmAllPending(config, jobId, identity);
+      setRecord(next);
+      onRecordLoaded?.(next);
     } catch (err) {
       setActionError(describeError(err));
     } finally {
@@ -127,6 +146,13 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange,
   const readyForSignoff = total > 0 && reconciled === total;
   const identityIsSubmitter = Boolean(record.submitted_by) && identity.trim() === record.submitted_by?.trim();
   const effectiveTemplateId = templateChoice ?? record.template_id ?? DEFAULT_TEMPLATE_ID;
+  const pendingCount = record.balloons.filter((b) => b.status === "pending").length;
+  const bulkRunning = busyKey === "__confirm_all__";
+  const confirmAllDisabledReason = !identity.trim()
+    ? "Enter your name as reviewer first"
+    : identityIsSubmitter
+      ? "You can't review your own submission"
+      : null;
 
   return (
     <section className="reconciliation-panel">
@@ -169,6 +195,54 @@ export function ReconciliationPanel({ jobId, config, identity, onIdentityChange,
       {actionError && (
         <div className="reconciliation-panel__error" role="alert">
           {actionError}
+        </div>
+      )}
+
+      {!record.signed_off && (pendingCount > 0 || bulkRunning) && (
+        <div className="reconciliation-panel__toolbar">
+          <button
+            type="button"
+            className="btn btn--small btn--primary"
+            disabled={busyKey !== null || confirmAllDisabledReason !== null}
+            title={confirmAllDisabledReason ?? `Confirm all ${pendingCount} pending rows as extracted`}
+            onClick={() => setConfirmAllOpen(true)}
+          >
+            ✓ Confirm all ({pendingCount})
+          </button>
+          {bulkRunning ? (
+            <span className="reconciliation-panel__hint" role="status">
+              Confirming {pendingCount} rows…
+            </span>
+          ) : (
+            confirmAllDisabledReason && <span className="reconciliation-panel__hint">{confirmAllDisabledReason}</span>
+          )}
+        </div>
+      )}
+
+      {confirmAllOpen && (
+        <div className="reconciliation-panel__dialog-backdrop" onClick={() => setConfirmAllOpen(false)}>
+          <div
+            className="reconciliation-panel__dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-all-title"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key === "Escape" && setConfirmAllOpen(false)}
+          >
+            <h4 id="confirm-all-title">Confirm all {pendingCount} pending rows?</h4>
+            <p>
+              Each value will be marked as matching the source drawing, reviewed by <strong>{identity.trim()}</strong>.
+              Rows you've already corrected or flagged won't change.
+            </p>
+            <div className="reconciliation-panel__dialog-actions">
+              <button type="button" className="btn btn--ghost btn--small" onClick={() => setConfirmAllOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn--primary btn--small" autoFocus onClick={() => void handleConfirmAll()}>
+                Yes, confirm all
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -275,6 +275,26 @@ export interface ReviewBalloonOptions {
   signal?: AbortSignal;
 }
 
+/** Bulk "Confirm all": confirms every still-pending row in one request (one backend load + save)
+ * instead of one reviewBalloon call per row. Rows already corrected or flagged are untouched.
+ * Returns the full updated record. See wabtec_poc's POST /api/drawings/{jobId}/confirm-all. */
+export async function confirmAllPending(
+  config: ConnectionConfig | null,
+  jobId: string,
+  reviewerId: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<ReconciliationRecord> {
+  requireConfig(config);
+
+  const res = await fetch(`${trimTrailingSlash(config.baseUrl)}/api/drawings/${encodeURIComponent(jobId)}/confirm-all`, {
+    method: "POST",
+    headers: { ...authHeaders(config), "Content-Type": "application/json" },
+    body: JSON.stringify({ reviewerId }),
+    signal: options.signal,
+  });
+  return handleResponse(res);
+}
+
 export async function reviewBalloon(
   config: ConnectionConfig | null,
   jobId: string,

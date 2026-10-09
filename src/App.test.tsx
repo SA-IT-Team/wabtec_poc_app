@@ -330,6 +330,69 @@ describe("App", () => {
     expect(JSON.parse((exportCall[1]?.body as string) ?? "{}")).toEqual({ templateId: "generic-flat" });
   });
 
+  it("confirms every pending row via Confirm all, after the confirmation dialog", async () => {
+    const user = userEvent.setup();
+    const result: ExtractionResult = {
+      job_id: "job-1",
+      drawing_number: "DWG-1",
+      revision: "A",
+      balloon_count_detected: 1,
+      balloon_count_extracted: 1,
+      balloon_count_mismatch: false,
+      balloons: [],
+      export_url: null,
+      reconciliation: {
+        job_id: "job-1",
+        total_balloons: 1,
+        pending: 1,
+        reconciled: 0,
+        cannot_determine: 0,
+        percent_complete: 0,
+        ready_for_signoff: false,
+        signed_off: false,
+        signed_off_by: null,
+        signed_off_at: null,
+      },
+    };
+    const pending = reconciliationFor("job-1", "DWG-1", "alice");
+    const reconciled = { ...pending, balloons: [{ ...pending.balloons[0], status: "reconciled" as const, reviewer_id: "bob", reviewed: pending.balloons[0].extracted }] };
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(result)) // extract
+      .mockResolvedValueOnce(jsonResponse(pending)) // ReconciliationPanel initial load
+      .mockResolvedValueOnce(jsonResponse(reconciled)); // POST confirm-all -> full updated record
+
+    render(<App />);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, new File(["%PDF-1.4"], "dwg.pdf", { type: "application/pdf" }));
+    await user.click(screen.getByRole("button", { name: /extract/i }));
+    await waitFor(() => expect(screen.getByText("0 / 1 reconciled")).toBeInTheDocument());
+
+    // disabled until a reviewer name is entered
+    expect(screen.getByRole("button", { name: /confirm all \(1\)/i })).toBeDisabled();
+    await user.type(screen.getByLabelText(/^reviewer$/i), "bob");
+
+    // cancelling the dialog sends nothing
+    await user.click(screen.getByRole("button", { name: /confirm all \(1\)/i }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(/confirm all 1 pending rows/i);
+    await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+
+    await user.click(screen.getByRole("button", { name: /confirm all \(1\)/i }));
+    await user.click(screen.getByRole("button", { name: /yes, confirm all/i }));
+
+    await waitFor(() => expect(screen.getByText("1 / 1 reconciled")).toBeInTheDocument());
+    // one request for every row, not one per row
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3);
+    const bulkCall = vi.mocked(fetch).mock.calls[2];
+    expect(bulkCall[0]).toBe("https://bdx-poc.vercel.app/api/drawings/job-1/confirm-all");
+    expect(JSON.parse((bulkCall[1]?.body as string) ?? "{}")).toEqual({ reviewerId: "bob" });
+    // nothing left pending -> the button goes away
+    expect(screen.queryByRole("button", { name: /confirm all/i })).not.toBeInTheDocument();
+  });
+
   it("shows the extracted fields for a job reopened from history, not just its reconciliation panel", async () => {
     // GET /api/drawings/{jobId} (what reopening from history uses) only returns summary counts,
     // no per-balloon detail -- the balloon table has to come from ReconciliationPanel's own fetch
